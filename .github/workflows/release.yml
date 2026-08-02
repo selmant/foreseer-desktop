@@ -59,12 +59,6 @@ jobs:
         shell: bash
         run: cargo xtask fetch-cef
 
-      - name: Adapt Jellium packager for Foreseer
-        shell: bash
-        run: |
-          python3 foreseer-desktop/scripts/patch-jellium-for-foreseer.py \
-            jellium-desktop
-
       - name: Determine version
         id: version
         shell: bash
@@ -76,6 +70,72 @@ jobs:
           fi
           test -n "${version}"
           echo "version=${version}" >> "${GITHUB_OUTPUT}"
+
+      # The Jellium AppImage builder already knows how to bundle CEF, mpv,
+      # glibc, PipeWire and the remaining runtime libraries. This temporary
+      # checkout-only adaptation makes it build Foreseer after staging those
+      # dependencies. Nothing is committed back to the Jellium repository.
+      - name: Prepare Foreseer AppImage builder
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          script="jellium-desktop/dev/linux/appimage/container-build.sh"
+          app_run="jellium-desktop/dev/linux/appimage/AppRun"
+          resources="jellium-desktop/resources/linux"
+
+          awk '
+            $0 == "cd /src" {
+              print "cd /workspace/jellium-desktop"
+              next
+            }
+            $0 == "cargo xtask build --out /build" {
+              print
+              print "cd /workspace/foreseer-desktop"
+              print "env CEF_PATH=/workspace/jellium-desktop/.cache/cef JFN_MPV_INCLUDE_DIR=/workspace/jellium-desktop/third_party/mpv/include JFN_MPV_LIB_DIR=/build/mpv-build CARGO_TARGET_DIR=/build/foreseer-target cargo build --release"
+              print "cp /build/foreseer-target/release/foreseer-desktop /build/foreseer-desktop"
+              print "cd /workspace/jellium-desktop"
+              next
+            }
+            {
+              gsub(/jellium-desktop/, "foreseer-desktop")
+              gsub(/\/src\//, "/workspace/jellium-desktop/")
+              gsub(/net\.nullsum\.JelliumDesktop/, "com.selmantrabzon.Foreseer")
+              gsub(/JelliumDesktop/, "ForeseerDesktop")
+              print
+            }
+          ' "${script}" > "${script}.tmp"
+          mv "${script}.tmp" "${script}"
+          chmod +x "${script}"
+
+          sed -i 's/jellium-desktop/foreseer-desktop/g' "${app_run}"
+
+          mv "${resources}/net.nullsum.JelliumDesktop.desktop" \
+             "${resources}/com.selmantrabzon.Foreseer.desktop"
+          mv "${resources}/net.nullsum.JelliumDesktop.svg" \
+             "${resources}/com.selmantrabzon.Foreseer.svg"
+          mv "${resources}/net.nullsum.JelliumDesktop.metainfo.xml" \
+             "${resources}/com.selmantrabzon.Foreseer.metainfo.xml"
+
+          sed -i \
+            -e 's/net\.nullsum\.JelliumDesktop/com.selmantrabzon.Foreseer/g' \
+            -e 's/Name=Jellium Desktop/Name=Foreseer Desktop/' \
+            -e 's/Comment=Desktop client for Jellyfin/Comment=Native desktop client for Foreseer/' \
+            -e 's/Exec=jellium-desktop/Exec=foreseer-desktop/' \
+            "${resources}/com.selmantrabzon.Foreseer.desktop"
+
+          sed -i \
+            -e 's/net\.nullsum\.JelliumDesktop/com.selmantrabzon.Foreseer/g' \
+            -e 's/Jellium Desktop/Foreseer Desktop/g' \
+            -e 's/Jellyfin media client for desktop/Native desktop client for Foreseer/' \
+            -e 's#https://github.com/andrewrabert/jellium-desktop/issues#https://github.com/selmant/foreseer-desktop/issues#' \
+            -e 's#https://jellyfin.org/docs/#https://github.com/selmant/foreseer-desktop#' \
+            -e 's#https://jellyfin.org#https://foreseer.selmantrabzon.com#' \
+            -e 's/GPL-2.0-or-later/GPL-2.0-only/' \
+            "${resources}/com.selmantrabzon.Foreseer.metainfo.xml"
+
+          grep -q 'cargo build --release' "${script}"
+          grep -q 'foreseer-desktop' "${app_run}"
 
       - name: Build AppImage container
         shell: bash
@@ -90,18 +150,18 @@ jobs:
         env:
           VERSION: ${{ steps.version.outputs.version }}
         run: |
+          set -euo pipefail
           mkdir -p .build/appimage dist
 
           docker run --rm \
             --env VERSION="${VERSION}" \
-            --env FORESEER_MANIFEST=/workspace/foreseer-desktop/Cargo.toml \
             --volume "${GITHUB_WORKSPACE}:/workspace" \
             --volume "${GITHUB_WORKSPACE}/.build/appimage:/build" \
             --volume "${GITHUB_WORKSPACE}/dist:/host-output" \
             foreseer-desktop-appimage:ci \
             /workspace/jellium-desktop/dev/linux/appimage/container-build.sh
 
-          sudo chown -R "$(id -u):$(id -g)" dist .build
+          sudo chown -R "$(id -u):$(id -g)" dist .build jellium-desktop/.cache || true
           test -f "dist/ForeseerDesktop-${VERSION}-x86_64.AppImage"
           chmod +x "dist/ForeseerDesktop-${VERSION}-x86_64.AppImage"
 
@@ -155,12 +215,6 @@ jobs:
         shell: pwsh
         run: cargo xtask fetch-cef
 
-      - name: Adapt Jellium packager for Foreseer
-        shell: pwsh
-        run: |
-          python foreseer-desktop/scripts/patch-jellium-for-foreseer.py `
-            jellium-desktop
-
       - name: Setup MSYS2
         uses: msys2/setup-msys2@v2
         with:
@@ -192,10 +246,7 @@ jobs:
             $version = $env:GITHUB_REF_NAME -replace '^v', ''
           } else {
             $manifest = Get-Content foreseer-desktop/Cargo.toml -Raw
-            $match = [regex]::Match(
-              $manifest,
-              '(?m)^version\s*=\s*"([^"]+)"'
-            )
+            $match = [regex]::Match($manifest, '(?m)^version\s*=\s*"([^"]+)"')
             if (-not $match.Success) {
               throw "Could not read package version"
             }
@@ -203,11 +254,12 @@ jobs:
           }
           "version=$version" >> $env:GITHUB_OUTPUT
 
+      # First let Jellium stage CEF and all mpv/FFmpeg DLLs into bundle/.
+      # Then build the real Foreseer executable against the same dependencies
+      # and replace only Jellium's executable.
       - name: Build Windows bundle
-        working-directory: jellium-desktop
         shell: cmd
         env:
-          FORESEER_MANIFEST: ${{ github.workspace }}\foreseer-desktop\Cargo.toml
           LIBCLANG_PATH: C:\msys64\CLANG64\bin
           MSYS_BIN: C:\msys64\CLANG64\bin
           BINDGEN_EXTRA_CLANG_ARGS: --target=x86_64-pc-windows-msvc
@@ -215,7 +267,18 @@ jobs:
           for /f "usebackq delims=" %%i in (`"%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe" -latest -property installationPath`) do set "VSINSTALL=%%i"
           call "%VSINSTALL%\VC\Auxiliary\Build\vcvarsall.bat" x64 || exit /b 1
           set "PATH=%PATH%;%MSYS_BIN%"
-          cargo xtask build --external-mpv "%CD%\third_party\mpv-install" --out "%GITHUB_WORKSPACE%\bundle"
+
+          cd /d "%GITHUB_WORKSPACE%\jellium-desktop"
+          cargo xtask build --external-mpv "%GITHUB_WORKSPACE%\jellium-desktop\third_party\mpv-install" --out "%GITHUB_WORKSPACE%\bundle" || exit /b 1
+
+          set "CEF_PATH=%GITHUB_WORKSPACE%\jellium-desktop\.cache\cef"
+          set "EXTERNAL_MPV_DIR=%GITHUB_WORKSPACE%\jellium-desktop\third_party\mpv-install"
+          set "CARGO_TARGET_DIR=%GITHUB_WORKSPACE%\foreseer-target"
+
+          cargo rustc --release --manifest-path "%GITHUB_WORKSPACE%\foreseer-desktop\Cargo.toml" --bin foreseer-desktop -- -C link-arg=/SUBSYSTEM:WINDOWS -C link-arg=/ENTRY:mainCRTStartup || exit /b 1
+
+          copy /Y "%GITHUB_WORKSPACE%\foreseer-target\release\foreseer-desktop.exe" "%GITHUB_WORKSPACE%\bundle\foreseer-desktop.exe" || exit /b 1
+          del /Q "%GITHUB_WORKSPACE%\bundle\jellium-desktop.exe"
 
       - name: Create Windows ZIP
         shell: pwsh
@@ -224,10 +287,13 @@ jobs:
         run: |
           $archive = "dist/ForeseerDesktop-$env:VERSION-windows-x64.zip"
           New-Item -ItemType Directory -Force dist | Out-Null
+
           if (-not (Test-Path bundle/foreseer-desktop.exe)) {
             throw "foreseer-desktop.exe was not staged"
           }
+
           Compress-Archive -Path bundle/* -DestinationPath $archive -Force
+
           if (-not (Test-Path $archive)) {
             throw "Windows archive was not created"
           }
@@ -318,4 +384,3 @@ jobs:
             --repo "${GITHUB_REPOSITORY}" \
             --clobber \
             "${assets[@]}"
-
