@@ -76,8 +76,9 @@ jobs:
           path: ${{ env.CEF_PATH }}
           key: cef-${{ runner.os }}-${{ runner.arch }}-150.0.0
 
+      # Format only this crate — path-dep Jellium is pinned and linted upstream.
       - name: Format
-        run: cargo fmt --all -- --check
+        run: cargo fmt -- --check
 
       - name: Test
         run: cargo test
