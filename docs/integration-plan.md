@@ -34,6 +34,7 @@ The proof of concept already establishes the difficult rendering path:
 - Jellyfin Web resolves the item and controls mpv.
 - Jellium swaps the visible layer for playback and restores Foreseer on terminal playback events.
 - The compositor fix unmaps a hidden GPU-painted layer so mpv can actually become visible.
+- CEF Chromium GPU compositing stays enabled even when shared-texture (dmabuf) presentation falls back to CPU/GPU upload. Shared textures are a host paint path; `--disable-gpu-compositing` is an explicit CLI/settings opt-out only. UI CSS (`backdrop-blur`, transforms) needs the Chromium compositor.
 
 The remaining architectural gap is identity and lifecycle. Foreseer authenticates with a 30-day HTTP-only session cookie and stores the linked user's Jellyfin token server-side. The hidden Jellyfin Web layer currently keeps a separate login/profile, which caused the extra server and login prompts during the proof of concept.
 
