@@ -359,9 +359,10 @@ Exit: a token can travel only from the Foreseer server to native memory through 
 
 Implementation note: the current compatibility adapter installs the typed
 bootstrap into the private Jellyfin layer, waits for `ApiClient` readiness,
-and acknowledges matching server/user IDs back to native code. Logout/account
-switch clearing, retry policy, and a pinned deployed Jellyfin compatibility
-matrix remain.
+and acknowledges matching server/user IDs back to native code. External-
+frontend mode also skips the stock server-selection overlay so an unfinished
+connect form cannot cover mpv. Logout/account switch clearing, retry policy,
+and a pinned deployed Jellyfin compatibility matrix remain.
 
 Exit: a user signs into Foreseer once and can play without entering a Jellyfin server or credentials in Jellium.
 
