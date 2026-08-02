@@ -63,7 +63,7 @@ flowchart LR
 
 The external Foreseer layer is the application UI. The Jellyfin Web layer is a private playback controller and must never become a second general-purpose UI during normal operation.
 
-Owned-media browsing lives in Foreseer web (`/library`, `/api/v1/library/*`): Continue Watching, Recently Added, Ready to Watch, and available-title search use the user-linked Jellyfin token on the Foreseer server. Native desktop remains play-only (`playItem`); it does not list library contents and must not surface hidden Jellyfin Web for browsing.
+Owned-media browsing lives in Foreseer web (`/library`, `/api/v1/library/*`): Continue Watching, Recently Added, Recently Added Episodes, Ready to Watch, and available-title search use the user-linked Jellyfin token on the Foreseer server. Series Play resolves to a concrete episode id (resume → next unwatched → rewatch S1E1); series card click opens an in-Library season/episode panel with View details → `/tv/{tmdbId}`. Native desktop remains play-only (`playItem`); it does not list library contents and must not surface hidden Jellyfin Web for browsing.
 
 ## 1. Versioned Native Capability Contract
 
@@ -236,6 +236,7 @@ Define these actions separately:
 | Foreseer Logout | Call the existing logout endpoint, clear the private Jellyfin session and queued commands, rotate the bootstrap verifier, remain in the app on Foreseer's login page. |
 | Window Close | Gracefully stop playback, close CEF layers, flush safe state, terminate mpv and the process. |
 | Quit menu / Ctrl+Q or Cmd+Q | Same graceful application shutdown as window close. |
+| Foreseer sidebar Quit (native-only) | Confirm modal, then `jelliumHost.quit()` → same shutdown coordinator. Hidden in ordinary browsers. |
 | Minimize | Hide/suspend rendering according to platform lifecycle; do not stop playback unless configured. |
 | App reopen / second instance | Focus the existing instance and optionally navigate it through a validated deep-link command. |
 
@@ -250,7 +251,7 @@ The half-second Jellyfin UI flash is a release blocker. Keep Foreseer or an opaq
 - Use the native system title bar first unless a platform already has a reliable Jellium custom decoration path.
 - Set Foreseer product name, icon, desktop entry/app bundle identity, protocol handler, and separate config/cache directories.
 - Persist window size, position, maximized state, fullscreen state, selected display, and zoom.
-- Add native shortcuts: Quit, Reload, hard reload in development, Back, Forward, Find, zoom controls, fullscreen, and developer tools only in development builds.
+- Add native shortcuts: Quit, Reload, hard reload in development, Back, Forward, Find, zoom controls (`Ctrl`/`Cmd` + wheel, `+`/`-`/`0`), fullscreen, and developer tools only in development builds.
 - Make external links open in the user's default browser unless they belong to the configured exact Foreseer origin.
 - Handle downloads, permission prompts, certificates, popups, and target-blank navigation with explicit policy.
 - Add offline and server-unreachable pages that can retry without destroying the local profile.
