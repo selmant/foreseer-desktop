@@ -15,7 +15,6 @@ concurrency:
 
 env:
   CARGO_TERM_COLOR: always
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
 jobs:
   linux-x86_64:
@@ -24,7 +23,7 @@ jobs:
 
     steps:
       - name: Checkout Foreseer Desktop
-        uses: actions/checkout@v7
+        uses: actions/checkout@v4
         with:
           path: foreseer-desktop
           fetch-depth: 0
@@ -38,7 +37,7 @@ jobs:
           echo "revision=${revision}" >> "${GITHUB_OUTPUT}"
 
       - name: Checkout pinned Jellium
-        uses: actions/checkout@v7
+        uses: actions/checkout@v4
         with:
           repository: selmant/jellium-desktop
           ref: ${{ steps.jellium.outputs.revision }}
@@ -166,7 +165,7 @@ jobs:
           chmod +x "dist/ForeseerDesktop-${VERSION}-x86_64.AppImage"
 
       - name: Upload Linux artifact
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v4
         with:
           name: foreseer-desktop-linux-x86_64
           path: dist/ForeseerDesktop-*.AppImage
@@ -178,7 +177,7 @@ jobs:
 
     steps:
       - name: Checkout Foreseer Desktop
-        uses: actions/checkout@v7
+        uses: actions/checkout@v4
         with:
           path: foreseer-desktop
           fetch-depth: 0
@@ -194,7 +193,7 @@ jobs:
           "revision=$revision" >> $env:GITHUB_OUTPUT
 
       - name: Checkout pinned Jellium
-        uses: actions/checkout@v7
+        uses: actions/checkout@v4
         with:
           repository: selmant/jellium-desktop
           ref: ${{ steps.jellium.outputs.revision }}
@@ -299,7 +298,7 @@ jobs:
           }
 
       - name: Upload Windows artifact
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v4
         with:
           name: foreseer-desktop-windows-x64
           path: dist/ForeseerDesktop-*-windows-x64.zip
@@ -315,13 +314,13 @@ jobs:
 
     steps:
       - name: Checkout release metadata
-        uses: actions/checkout@v7
+        uses: actions/checkout@v4
         with:
           path: foreseer-desktop
           fetch-depth: 0
 
       - name: Download built artifacts
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v4
         with:
           path: release-assets
           merge-multiple: true
