@@ -1,36 +1,288 @@
-name: release
+name: Build and release binaries
 
 on:
+  workflow_dispatch:
   push:
     tags:
-      - 'v*'
+      - "v*"
 
 permissions:
   contents: write
 
-jobs:
-  github-release:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
-      - name: Create GitHub Release
+env:
+  CARGO_TERM_COLOR: always
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+jobs:
+  linux-x86_64:
+    name: Linux x86_64 AppImage
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Foreseer Desktop
+        uses: actions/checkout@v7
+        with:
+          path: foreseer-desktop
+          fetch-depth: 0
+
+      - name: Read pinned Jellium revision
+        id: jellium
+        shell: bash
+        run: |
+          revision="$(tr -d '[:space:]' < foreseer-desktop/jellium.rev)"
+          test -n "${revision}"
+          echo "revision=${revision}" >> "${GITHUB_OUTPUT}"
+
+      - name: Checkout pinned Jellium
+        uses: actions/checkout@v7
+        with:
+          repository: selmant/jellium-desktop
+          ref: ${{ steps.jellium.outputs.revision }}
+          path: jellium-desktop
+          submodules: recursive
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache CEF
+        uses: actions/cache@v4
+        with:
+          path: jellium-desktop/.cache/cef
+          key: cef-linux-x86_64-${{ hashFiles('jellium-desktop/src/Cargo.lock') }}
+
+      - name: Fetch CEF
+        working-directory: jellium-desktop
+        shell: bash
+        run: cargo xtask fetch-cef
+
+      - name: Adapt Jellium packager for Foreseer
+        shell: bash
+        run: |
+          python3 foreseer-desktop/scripts/patch-jellium-for-foreseer.py \
+            jellium-desktop
+
+      - name: Determine version
+        id: version
+        shell: bash
+        run: |
+          if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
+            version="${GITHUB_REF_NAME#v}"
+          else
+            version="$(sed -nE 's/^version = "([^"]+)"/\1/p' foreseer-desktop/Cargo.toml | head -n1)"
+          fi
+          test -n "${version}"
+          echo "version=${version}" >> "${GITHUB_OUTPUT}"
+
+      - name: Build AppImage container
+        shell: bash
+        run: |
+          docker build \
+            --tag foreseer-desktop-appimage:ci \
+            --file jellium-desktop/dev/linux/appimage/Dockerfile \
+            jellium-desktop/dev/linux/appimage
+
+      - name: Build Linux AppImage
+        shell: bash
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          mkdir -p .build/appimage dist
+
+          docker run --rm \
+            --env VERSION="${VERSION}" \
+            --env FORESEER_MANIFEST=/workspace/foreseer-desktop/Cargo.toml \
+            --volume "${GITHUB_WORKSPACE}:/workspace" \
+            --volume "${GITHUB_WORKSPACE}/.build/appimage:/build" \
+            --volume "${GITHUB_WORKSPACE}/dist:/host-output" \
+            foreseer-desktop-appimage:ci \
+            /workspace/jellium-desktop/dev/linux/appimage/container-build.sh
+
+          sudo chown -R "$(id -u):$(id -g)" dist .build
+          test -f "dist/ForeseerDesktop-${VERSION}-x86_64.AppImage"
+          chmod +x "dist/ForeseerDesktop-${VERSION}-x86_64.AppImage"
+
+      - name: Upload Linux artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: foreseer-desktop-linux-x86_64
+          path: dist/ForeseerDesktop-*.AppImage
+          if-no-files-found: error
+
+  windows-x64:
+    name: Windows x64 portable ZIP
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout Foreseer Desktop
+        uses: actions/checkout@v7
+        with:
+          path: foreseer-desktop
+          fetch-depth: 0
+
+      - name: Read pinned Jellium revision
+        id: jellium
+        shell: pwsh
+        run: |
+          $revision = (Get-Content foreseer-desktop/jellium.rev -Raw).Trim()
+          if (-not $revision) {
+            throw "jellium.rev is empty"
+          }
+          "revision=$revision" >> $env:GITHUB_OUTPUT
+
+      - name: Checkout pinned Jellium
+        uses: actions/checkout@v7
+        with:
+          repository: selmant/jellium-desktop
+          ref: ${{ steps.jellium.outputs.revision }}
+          path: jellium-desktop
+          submodules: recursive
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache CEF
+        uses: actions/cache@v4
+        with:
+          path: jellium-desktop/.cache/cef
+          key: cef-windows-x64-${{ hashFiles('jellium-desktop/src/Cargo.lock') }}
+
+      - name: Fetch CEF
+        working-directory: jellium-desktop
+        shell: pwsh
+        run: cargo xtask fetch-cef
+
+      - name: Adapt Jellium packager for Foreseer
+        shell: pwsh
+        run: |
+          python foreseer-desktop/scripts/patch-jellium-for-foreseer.py `
+            jellium-desktop
+
+      - name: Setup MSYS2
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: CLANG64
+          install: >-
+            mingw-w64-clang-x86_64-cc
+            mingw-w64-clang-x86_64-clang
+            mingw-w64-clang-x86_64-meson
+            mingw-w64-clang-x86_64-pkgconf
+            mingw-w64-clang-x86_64-ffmpeg
+            mingw-w64-clang-x86_64-libplacebo
+            mingw-w64-clang-x86_64-libass
+            mingw-w64-clang-x86_64-vulkan-headers
+            mingw-w64-clang-x86_64-vulkan-loader
+            mingw-w64-clang-x86_64-shaderc
+            mingw-w64-clang-x86_64-spirv-cross
+            mingw-w64-clang-x86_64-llvm
+
+      - name: Build mpv from source
+        working-directory: jellium-desktop
+        shell: pwsh
+        run: dev\windows\build_mpv_source.ps1 -Arch x64 -Force
+
+      - name: Determine version
+        id: version
+        shell: pwsh
+        run: |
+          if ($env:GITHUB_REF_TYPE -eq "tag") {
+            $version = $env:GITHUB_REF_NAME -replace '^v', ''
+          } else {
+            $manifest = Get-Content foreseer-desktop/Cargo.toml -Raw
+            $match = [regex]::Match(
+              $manifest,
+              '(?m)^version\s*=\s*"([^"]+)"'
+            )
+            if (-not $match.Success) {
+              throw "Could not read package version"
+            }
+            $version = $match.Groups[1].Value
+          }
+          "version=$version" >> $env:GITHUB_OUTPUT
+
+      - name: Build Windows bundle
+        working-directory: jellium-desktop
+        shell: cmd
+        env:
+          FORESEER_MANIFEST: ${{ github.workspace }}\foreseer-desktop\Cargo.toml
+          LIBCLANG_PATH: C:\msys64\CLANG64\bin
+          MSYS_BIN: C:\msys64\CLANG64\bin
+          BINDGEN_EXTRA_CLANG_ARGS: --target=x86_64-pc-windows-msvc
+        run: |
+          for /f "usebackq delims=" %%i in (`"%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe" -latest -property installationPath`) do set "VSINSTALL=%%i"
+          call "%VSINSTALL%\VC\Auxiliary\Build\vcvarsall.bat" x64 || exit /b 1
+          set "PATH=%PATH%;%MSYS_BIN%"
+          cargo xtask build --external-mpv "%CD%\third_party\mpv-install" --out "%GITHUB_WORKSPACE%\bundle"
+
+      - name: Create Windows ZIP
+        shell: pwsh
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          $archive = "dist/ForeseerDesktop-$env:VERSION-windows-x64.zip"
+          New-Item -ItemType Directory -Force dist | Out-Null
+          if (-not (Test-Path bundle/foreseer-desktop.exe)) {
+            throw "foreseer-desktop.exe was not staged"
+          }
+          Compress-Archive -Path bundle/* -DestinationPath $archive -Force
+          if (-not (Test-Path $archive)) {
+            throw "Windows archive was not created"
+          }
+
+      - name: Upload Windows artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: foreseer-desktop-windows-x64
+          path: dist/ForeseerDesktop-*-windows-x64.zip
+          if-no-files-found: error
+
+  github-release:
+    name: Publish GitHub release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs:
+      - linux-x86_64
+      - windows-x64
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout release metadata
+        uses: actions/checkout@v7
+        with:
+          path: foreseer-desktop
+          fetch-depth: 0
+
+      - name: Download built artifacts
+        uses: actions/download-artifact@v7
+        with:
+          path: release-assets
+          merge-multiple: true
+
+      - name: Create or update release
+        shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          set -euo pipefail
+
           tag="${GITHUB_REF_NAME}"
           notes_file="$(mktemp)"
+
           {
             echo "Foreseer Desktop ${tag}"
             echo
-            echo "Linux source release. Build against the Jellium revision in \`jellium.rev\`."
-            echo "Windows/macOS and packaged installers are not part of this release."
+            echo "## Downloads"
             echo
-            if [[ -f CHANGELOG.md ]]; then
+            echo "- Linux x86_64 AppImage"
+            echo "- Windows x64 portable ZIP"
+            echo
+            echo "The Windows build is unsigned, so Windows may show a SmartScreen warning."
+            echo
+            if [[ -f foreseer-desktop/CHANGELOG.md ]]; then
               echo "## Changelog"
               echo
-              # Emit the first version section (until the next ## heading).
               awk '
                 BEGIN { emit=0 }
                 /^## / {
@@ -38,11 +290,32 @@ jobs:
                   emit=1
                 }
                 emit { print }
-              ' CHANGELOG.md
+              ' foreseer-desktop/CHANGELOG.md
             fi
           } > "${notes_file}"
 
-          gh release create "${tag}" \
-            --title "Foreseer Desktop ${tag}" \
-            --notes-file "${notes_file}" \
-            --verify-tag
+          mapfile -t assets < <(find release-assets -type f -print | sort)
+          if (( ${#assets[@]} != 2 )); then
+            printf 'Expected 2 release assets, found %s:\n' "${#assets[@]}" >&2
+            printf '  %s\n' "${assets[@]}" >&2
+            exit 1
+          fi
+
+          if gh release view "${tag}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
+            gh release edit "${tag}" \
+              --repo "${GITHUB_REPOSITORY}" \
+              --title "Foreseer Desktop ${tag}" \
+              --notes-file "${notes_file}"
+          else
+            gh release create "${tag}" \
+              --repo "${GITHUB_REPOSITORY}" \
+              --title "Foreseer Desktop ${tag}" \
+              --notes-file "${notes_file}" \
+              --verify-tag
+          fi
+
+          gh release upload "${tag}" \
+            --repo "${GITHUB_REPOSITORY}" \
+            --clobber \
+            "${assets[@]}"
+
