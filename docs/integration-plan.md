@@ -63,6 +63,8 @@ flowchart LR
 
 The external Foreseer layer is the application UI. The Jellyfin Web layer is a private playback controller and must never become a second general-purpose UI during normal operation.
 
+Owned-media browsing lives in Foreseer web (`/library`, `/api/v1/library/*`): Continue Watching, Recently Added, Ready to Watch, and available-title search use the user-linked Jellyfin token on the Foreseer server. Native desktop remains play-only (`playItem`); it does not list library contents and must not surface hidden Jellyfin Web for browsing.
+
 ## 1. Versioned Native Capability Contract
 
 Keep the injected global generic to the runtime: `window.jelliumHost`. Add a versioned, frozen capability description rather than relying only on a user-agent string or a truthy global.
