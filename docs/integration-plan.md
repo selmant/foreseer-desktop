@@ -72,7 +72,7 @@ Proposed shape:
 ```ts
 interface JelliumHostV1 {
   readonly protocolVersion: 1;
-  readonly hostName: 'foreseer-desktop';
+  readonly hostName: 'jellium-desktop';
   readonly hostVersion: string;
   readonly capabilities: readonly (
     | 'play-item'
@@ -84,6 +84,7 @@ interface JelliumHostV1 {
   requestAuthChallenge(requestId: string): boolean;
   playItem(requestId: string, itemId: string): boolean;
   completeAuth(requestId: string, ticket: string): boolean;
+  clearSession(requestId: string): boolean;
   minimize(): boolean;
   toggleMaximize(): boolean;
   toggleFullscreen(): boolean;
@@ -98,7 +99,7 @@ Rules:
 - Validate the current main-frame origin on every native call, not only at bridge creation.
 - Validate argument size and syntax in Rust.
 - Return only immediate admission (`true` or `false`) synchronously. Report actual results asynchronously.
-- Send sanitized state to the page through one versioned event, such as `foreseer:native-event`, containing `protocolVersion`, `requestId`, `type`, and a constrained payload.
+- Send sanitized state to the page through the generic versioned `jellium:host-event`, containing `protocolVersion`, `requestId`, `type`, and a constrained payload.
 - Never put a credential, media URL, local path, raw mpv error, or private server response in an event.
 
 ### Web detection
@@ -125,6 +126,7 @@ Do not put Foreseer HTTP policy or endpoint knowledge into Jellium. Extend `Host
 - Foreseer Desktop owns the verifier, Foreseer endpoint construction, TLS request, timeout, and redemption response validation.
 - The host service returns a typed `JellyfinSessionBootstrap` to Jellium over an internal Rust boundary. Jellium necessarily receives the credential in native memory because its private Web layer consumes it, but it does not persist or log it.
 - Jellium owns installation into the hidden Jellyfin session, player readiness, surface transitions, and native shutdown.
+- The generic `session-reset` capability clears the private Jellyfin identity and pending playback; Foreseer Desktop also rotates its in-memory verifier when it receives that intent.
 
 Use a dedicated worker or bounded channel with cancellation rather than calling the network from a CEF callback. Ensure shutdown cancels outstanding redemption and cannot deadlock on the worker.
 
