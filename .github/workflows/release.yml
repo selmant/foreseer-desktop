@@ -1,0 +1,48 @@
+name: release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  github-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="${GITHUB_REF_NAME}"
+          notes_file="$(mktemp)"
+          {
+            echo "Foreseer Desktop ${tag}"
+            echo
+            echo "Linux source release. Build against the Jellium revision in \`jellium.rev\`."
+            echo "Windows/macOS and packaged installers are not part of this release."
+            echo
+            if [[ -f CHANGELOG.md ]]; then
+              echo "## Changelog"
+              echo
+              # Emit the first version section (until the next ## heading).
+              awk '
+                BEGIN { emit=0 }
+                /^## / {
+                  if (emit) exit
+                  emit=1
+                }
+                emit { print }
+              ' CHANGELOG.md
+            fi
+          } > "${notes_file}"
+
+          gh release create "${tag}" \
+            --title "Foreseer Desktop ${tag}" \
+            --notes-file "${notes_file}" \
+            --verify-tag

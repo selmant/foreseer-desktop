@@ -1,0 +1,86 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  CEF_PATH: ${{ github.workspace }}/.cache/cef
+
+jobs:
+  linux:
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: foreseer-desktop
+
+    steps:
+      - name: Checkout Foreseer Desktop
+        uses: actions/checkout@v4
+        with:
+          path: foreseer-desktop
+
+      - name: Read Jellium pin
+        id: pin
+        run: echo "rev=$(tr -d '[:space:]' < jellium.rev)" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout Jellium (pinned)
+        uses: actions/checkout@v4
+        with:
+          repository: selmant/jellium-desktop
+          ref: ${{ steps.pin.outputs.rev }}
+          path: jellium-desktop
+          submodules: recursive
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential \
+            clang \
+            cmake \
+            libasound2-dev \
+            libclang-dev \
+            libmpv-dev \
+            libpipewire-0.3-dev \
+            libwayland-dev \
+            libxkbcommon-dev \
+            libxkbcommon-x11-dev \
+            libxcb1-dev \
+            libxcb-shape0-dev \
+            libxcb-xfixes0-dev \
+            libxcb-xkb-dev \
+            ninja-build \
+            pkg-config
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Cache Cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: foreseer-desktop -> target
+
+      - name: Cache CEF
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.CEF_PATH }}
+          key: cef-${{ runner.os }}-${{ runner.arch }}-150.0.0
+
+      - name: Format
+        run: cargo fmt --all -- --check
+
+      - name: Test
+        run: cargo test
+
+      - name: Clippy
+        run: cargo clippy --all-targets -- -D warnings

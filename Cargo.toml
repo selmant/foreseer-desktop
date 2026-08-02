@@ -4,6 +4,9 @@ version = "0.1.0"
 edition = "2024"
 license = "GPL-2.0-only"
 publish = false
+description = "Native Foreseer shell using Jellium external-frontend playback"
+repository = "https://github.com/selmant/foreseer-desktop"
+readme = "README.md"
 
 [dependencies]
 jfn-rust = { path = "../jellium-desktop/src/jfn_rust", features = ["external-frontend"] }
