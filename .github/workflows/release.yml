@@ -68,6 +68,8 @@ jobs:
             version="$(sed -nE 's/^version = "([^"]+)"/\1/p' foreseer-desktop/Cargo.toml | head -n1)"
           fi
           test -n "${version}"
+          manifest_version="$(sed -nE 's/^version = "([^"]+)"/\1/p' foreseer-desktop/Cargo.toml | head -n1)"
+          test "${version}" = "${manifest_version}"
           echo "version=${version}" >> "${GITHUB_OUTPUT}"
 
       # The Jellium AppImage builder already knows how to bundle CEF, mpv,
@@ -129,7 +131,7 @@ jobs:
             -e 's/Jellyfin media client for desktop/Native desktop client for Foreseer/' \
             -e 's#https://github.com/andrewrabert/jellium-desktop/issues#https://github.com/selmant/foreseer-desktop/issues#' \
             -e 's#https://jellyfin.org/docs/#https://github.com/selmant/foreseer-desktop#' \
-            -e 's#https://jellyfin.org#https://foreseer.selmantrabzon.com#' \
+            -e 's#https://jellyfin.org#https://foreseer.example.com#' \
             -e 's/GPL-2.0-or-later/GPL-2.0-only/' \
             "${resources}/com.selmantrabzon.Foreseer.metainfo.xml"
 
@@ -250,6 +252,11 @@ jobs:
               throw "Could not read package version"
             }
             $version = $match.Groups[1].Value
+          }
+          $manifest = Get-Content foreseer-desktop/Cargo.toml -Raw
+          $match = [regex]::Match($manifest, '(?m)^version\s*=\s*"([^"]+)"')
+          if (-not $match.Success -or $version -ne $match.Groups[1].Value) {
+            throw "Release tag and Cargo package version must match"
           }
           "version=$version" >> $env:GITHUB_OUTPUT
 

@@ -4,7 +4,7 @@ Native Foreseer shell backed by Jellium's opt-in external frontend runtime.
 Foreseer Desktop owns product configuration and behavior; Jellium supplies the
 native CEF/mpv playback mechanism.
 
-**0.1.0 support:** Linux (Wayland primary, X11 best-effort), **from source**.
+**0.1.1 support:** Linux (Wayland primary, X11 best-effort), **from source**.
 Windows/macOS and packaged installers are not released yet.
 
 This binary links GPL-2.0-only Jellium code and is therefore GPL-2.0-only.
@@ -30,15 +30,41 @@ git -C ../jellium-desktop checkout "$(tr -d '[:space:]' < jellium.rev)"
 git -C ../jellium-desktop submodule update --init --recursive
 ```
 
-## Run
+## Configuration & CLI
 
-```sh
-cargo run
-# optional frontend override:
-FORESEER_URL=https://foreseer.example cargo run
+Foreseer Desktop persists its configuration in a standard OS config directory:
+- **Linux**: `~/.config/Foreseer/config.json`
+- **macOS**: `~/Library/Application Support/com.selmantrabzon.Foreseer/config.json`
+- **Windows**: `%APPDATA%\selmantrabzon\Foreseer\config.json`
+
+```json
+{
+  "server_url": "https://foreseer.example.com",
+  "allow_insecure_http": false
+}
 ```
 
-Default frontend: `https://foreseer.selmantrabzon.com`.
+### CLI Commands & Environment Variables
+
+```sh
+# Run with default or saved server URL:
+cargo run
+
+# Launch the graphical server setup GUI:
+cargo run -- --setup
+
+# View current configuration and file location:
+cargo run -- --show-config
+
+# Set a new default server URL:
+cargo run -- --set-url https://foreseer.example.com
+
+# Allow HTTP (non-HTTPS) server URL:
+cargo run -- --set-url http://192.168.1.50:5055 --allow-http
+
+# Temporary environment variable override (does not modify config.json):
+FORESEER_URL=https://foreseer.example cargo run
+```
 
 ## Test / lint
 
@@ -46,13 +72,30 @@ Default frontend: `https://foreseer.selmantrabzon.com`.
 cargo test
 cargo fmt --all -- --check
 cargo clippy --all-targets -- -D warnings
+
+# Deterministic protocol/integration trace (no network, CEF, mpv, or secrets):
+node scripts/protocol-v1-harness.mjs
 ```
+
+Protocol v1 is frozen in `protocol/protocol-v1.json`. Jellium and Foreseer Web
+carry byte-equivalent fixtures so every repository can run its conformance
+tests from an independent checkout; the harness additionally rejects sibling
+fixture drift when all three checkouts are adjacent.
+
+The scripted trace covers browser fallback, native discovery and challenge-
+bound authentication, Jellyfin-owned resume, request replacement/correlation,
+Back/return, renderer error recovery, the typed setup envelope, and safe-log
+redaction. It deliberately does not claim GPU/compositor coverage. Before a
+release, run the Wayland and X11 visible-video/audio/focus matrix (including
+resize, fullscreen, mixed DPI, suspend/resume, and renderer recovery), then a
+50-cycle discovery → play → Back soak while checking for hidden audio, surface
+leaks, focus loss, and Jellyfin UI flashes.
 
 ## Release pins
 
 | Pin | Location |
 | --- | --- |
-| Version | `Cargo.toml` (`0.1.0`) |
+| Version | `Cargo.toml` (`0.1.1`) |
 | Jellium revision | `jellium.rev` |
 
 CI checks out that Jellium revision as a sibling of this repo and runs format,

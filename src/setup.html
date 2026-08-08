@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Foreseer Desktop - Server Setup</title>
+  <style>
+    :root {
+      --bg: #0b0f19;
+      --card-bg: rgba(21, 28, 44, 0.75);
+      --card-border: rgba(255, 255, 255, 0.1);
+      --primary: #3b82f6;
+      --primary-hover: #2563eb;
+      --text: #f3f4f6;
+      --text-muted: #9ca3af;
+      --error: #ef4444;
+      --success: #10b981;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      backdrop-filter: blur(12px);
+      padding: 32px;
+      width: 100%;
+      max-width: 440px;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+    }
+
+    .logo {
+      text-align: center;
+      margin-bottom: 24px;
+    }
+
+    .logo h1 {
+      font-size: 28px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      background: linear-gradient(135deg, #60a5fa 0%, #a855f7 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .logo p {
+      color: var(--text-muted);
+      font-size: 14px;
+      margin-top: 4px;
+    }
+
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    label {
+      display: block;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    input[type="text"], input[type="url"] {
+      width: 100%;
+      padding: 12px 16px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 15px;
+      outline: none;
+      transition: all 0.2s ease;
+    }
+
+    input[type="text"]:focus, input[type="url"]:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    .checkbox-group {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 24px;
+      user-select: none;
+    }
+
+    .checkbox-group input {
+      width: 18px;
+      height: 18px;
+      accent-color: var(--primary);
+      cursor: pointer;
+    }
+
+    .checkbox-group label {
+      margin-bottom: 0;
+      text-transform: none;
+      font-size: 14px;
+      color: var(--text);
+      cursor: pointer;
+    }
+
+    .btn-group {
+      display: flex;
+      gap: 12px;
+    }
+
+    button {
+      flex: 1;
+      padding: 12px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      transition: all 0.2s ease;
+    }
+
+    .btn-primary {
+      background: var(--primary);
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background: var(--primary-hover);
+    }
+
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.1);
+      color: var(--text);
+    }
+
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.15);
+    }
+
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .status-box {
+      margin-bottom: 20px;
+      padding: 12px;
+      border-radius: 8px;
+      font-size: 13px;
+      display: none;
+    }
+
+    .status-box.error {
+      display: block;
+      background: rgba(239, 68, 68, 0.15);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+      color: #fca5a5;
+    }
+
+    .status-box.success {
+      display: block;
+      background: rgba(16, 185, 129, 0.15);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      color: #6ee7b7;
+    }
+
+    .status-box.loading {
+      display: block;
+      background: rgba(59, 130, 246, 0.15);
+      border: 1px solid rgba(59, 130, 246, 0.3);
+      color: #93c5fd;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="card">
+    <div class="logo">
+      <h1>FORESEER</h1>
+      <p>Configure Server Connection</p>
+    </div>
+
+    <div class="form-group">
+      <label for="serverUrl">Server Address</label>
+      <input type="url" id="serverUrl" placeholder="https://foreseer.example.com" value="https://foreseer.selmantrabzon.com" spellcheck="false" required>
+    </div>
+
+    <div class="checkbox-group">
+      <label for="allowHttp">
+        <input type="checkbox" id="allowHttp">
+        Allow HTTP (for local non-SSL setups)
+      </label>
+    </div>
+
+    <div id="statusBox" class="status-box"></div>
+
+    <div class="btn-group">
+      <button type="button" class="btn-secondary" id="testBtn" onclick="testConnection()">Test</button>
+      <button type="button" class="btn-primary" id="saveBtn" onclick="saveAndConnect()">Connect & Save</button>
+    </div>
+  </div>
+
+  <script>
+    {{SETUP_EVENT_JS}}
+
+    function generateId() {
+      return Math.random().toString(36).substring(2, 15);
+    }
+
+    function nativeCall(action, url, allowHttp) {
+      return new Promise((resolve, reject) => {
+        const reqId = generateId();
+
+        const listener = (e) => {
+          const detail = window.foreseerSetupProtocolV1.parseEvent(e.detail, reqId);
+          if (detail) {
+            window.removeEventListener('jellium:host-event', listener);
+            if (detail.type === 'error') {
+              reject(new Error(detail.message || 'Action failed'));
+            } else {
+              resolve(detail);
+            }
+          }
+        };
+        window.addEventListener('jellium:host-event', listener);
+
+        try {
+          if (action === 'test') {
+            window.jelliumHost.checkServerConnectivity(reqId, url, allowHttp);
+          } else {
+            window.jelliumHost.saveServerUrl(reqId, url, allowHttp);
+          }
+        } catch (err) {
+          window.removeEventListener('jellium:host-event', listener);
+          reject(new Error('Native integration missing'));
+        }
+      });
+    }
+
+    async function testConnection() {
+      const url = document.getElementById('serverUrl').value.trim();
+      const allowHttp = document.getElementById('allowHttp').checked;
+      const statusBox = document.getElementById('statusBox');
+      const testBtn = document.getElementById('testBtn');
+
+      if (!url) {
+        statusBox.className = 'status-box error';
+        statusBox.textContent = 'Please enter a server URL.';
+        return;
+      }
+
+      statusBox.className = 'status-box loading';
+      statusBox.textContent = 'Testing connection...';
+      testBtn.disabled = true;
+
+      try {
+        const result = await nativeCall('test', url, allowHttp);
+        statusBox.className = 'status-box success';
+        statusBox.textContent = '✓ Reachable (HTTP ' + result.status + ')';
+      } catch (err) {
+        statusBox.className = 'status-box error';
+        statusBox.textContent = '✕ ' + err.message;
+      } finally {
+        testBtn.disabled = false;
+      }
+    }
+
+    async function saveAndConnect() {
+      const url = document.getElementById('serverUrl').value.trim();
+      const allowHttp = document.getElementById('allowHttp').checked;
+      const statusBox = document.getElementById('statusBox');
+      const saveBtn = document.getElementById('saveBtn');
+
+      if (!url) {
+        statusBox.className = 'status-box error';
+        statusBox.textContent = 'Please enter a server URL.';
+        return;
+      }
+
+      statusBox.className = 'status-box loading';
+      statusBox.textContent = 'Saving configuration...';
+      saveBtn.disabled = true;
+
+      try {
+        await nativeCall('save', url, allowHttp);
+        statusBox.className = 'status-box success';
+        statusBox.textContent = '✓ Saved! Launching Foreseer...';
+      } catch (err) {
+        statusBox.className = 'status-box error';
+        statusBox.textContent = '✕ ' + err.message;
+        saveBtn.disabled = false;
+      }
+    }
+  </script>
+</body>
+</html>

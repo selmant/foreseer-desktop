@@ -85,6 +85,7 @@ interface JelliumHostV1 {
     | 'quit'
   )[];
   requestAuthChallenge(requestId: string): boolean;
+  // Protocol v1 is intentionally two-argument. Jellyfin owns resume policy.
   playItem(requestId: string, itemId: string): boolean;
   completeAuth(requestId: string, ticket: string): boolean;
   clearSession(requestId: string): boolean;
@@ -462,6 +463,17 @@ Do not call the integration stable until all are true:
 - Default Jellium mode still builds and plays after fork changes.
 - Packaging pins Jellium and CEF exactly and satisfies GPL-2.0-only distribution obligations.
 - Crash/restart and 50-cycle playback soak tests pass on each declared supported platform/backend.
+
+### Executable protocol gate
+
+Protocol v1 is represented by `protocol/protocol-v1.json`; identical copies
+live in the Jellium and Foreseer Web repositories so their native Rust and
+TypeScript tests remain executable from independent checkouts. Run
+`node scripts/protocol-v1-harness.mjs` for the deterministic, hardware-free
+discovery/auth/resume/play-replace/Back/renderer-error/redaction trace. This
+harness is a contract and state-machine gate only. Wayland/X11 presentation,
+audio/focus, resize/fullscreen/mixed-DPI/suspend behavior, renderer recreation,
+and the 50-cycle leak/flash soak remain mandatory manual hardware gates.
 
 ## First Implementation Slice
 
