@@ -887,7 +887,7 @@ mod tests {
         assert_eq!(fixture["protocolVersion"], PROTOCOL_VERSION);
         assert_eq!(fixture["host"]["name"], "jellium-desktop");
         assert_eq!(fixture["host"]["versionSource"], "package-metadata");
-        assert_eq!(env!("CARGO_PKG_VERSION"), "0.1.1");
+        assert_eq!(env!("CARGO_PKG_VERSION"), "0.2.0");
         assert_eq!(fixture["limits"]["requestIdMaxLength"], 64);
         assert_eq!(
             fixture["limits"]["serverUrlMaxLength"],
