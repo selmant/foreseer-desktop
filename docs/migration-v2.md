@@ -30,6 +30,10 @@
 - [x] Phase 5 Seerr v2 (code complete; deploy before desktop release)
 - [x] Phase 6 gates + docs (upstream PRs deferred / non-blocking)
 - [ ] Phase 7 Linux acceptance + cutover
+  - [x] 7.1 Automated gates (local): Jellium stock + `host-extension`; Foreseer fmt/test/clippy/harness/boundary-audit; Seerr `pnpm test`
+  - [ ] 7.2 Manual Linux matrix + 50-cycle soak
+  - [ ] 7.3 Cutover (`jellium.rev` already candidate-pinned; push thin fork + deploy Seerr first)
+  - [ ] 7.4 Completion check
 
 ## Upstream PR drafts (Phase 6.4, non-blocking)
 
