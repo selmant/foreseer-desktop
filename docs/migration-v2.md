@@ -10,7 +10,7 @@
 | Old Jellium local hardened tip (dirty worktree left alone) | `8714375c676fd2ec771dc1471f954f409ef7b001` (tag `external-frontend-v1-local-hardened`) |
 | New upstream base (`upstream/main` at worktree create) | `28f2cf16a1f1b819884dd6a72919ca55bdf9bd73` |
 | Thin fork branch / worktree | `host-extension` at `/home/selmant/Projects/jellium-desktop-host-ext` |
-| Thin fork tip | `0a1297427b07b4040f5cd58a14b7ad9a0b85750d` |
+| Thin fork tip | `ce5d4b5ce4952634fc7cabb18f7cf0a00b5e21b4` |
 | Foreseer v2 branch / worktree | `feat/host-extension-v2` at `/home/selmant/Projects/foreseer-desktop-v2` |
 | Seerr v2 branch | `feat/foreseer-native-v2` from `develop` |
 
@@ -25,9 +25,9 @@
 - [x] Phase 0 baselines and worktrees
 - [x] Phase 1 generic `host-extension` seam
 - [x] Phase 2 fork triage
-- [ ] Phase 3 Foreseer protocol + controller
-- [ ] Phase 4 assets + live adapter
-- [ ] Phase 5 Seerr v2
+- [x] Phase 3 Foreseer protocol + controller
+- [x] Phase 4 assets + live adapter
+- [x] Phase 5 Seerr v2 (code complete; deploy before desktop release)
 - [ ] Phase 6 gates + docs
 - [ ] Phase 7 Linux acceptance + cutover
 
