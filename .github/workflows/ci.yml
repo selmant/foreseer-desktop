@@ -12,7 +12,7 @@ concurrency:
 
 env:
   CARGO_TERM_COLOR: always
-  CEF_PATH: ${{ github.workspace }}/jellium-desktop/.cache/cef
+  CEF_PATH: ${{ github.workspace }}/jellium-desktop-host-ext/.cache/cef
 
 jobs:
   linux:
@@ -36,7 +36,7 @@ jobs:
         with:
           repository: selmant/jellium-desktop
           ref: ${{ steps.pin.outputs.rev }}
-          path: jellium-desktop
+          path: jellium-desktop-host-ext
           submodules: recursive
 
       - name: Install system dependencies
@@ -73,12 +73,20 @@ jobs:
       - name: Cache CEF
         uses: actions/cache@v4
         with:
-          path: jellium-desktop/.cache/cef
-          key: cef-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('jellium-desktop/src/Cargo.lock') }}
+          path: jellium-desktop-host-ext/.cache/cef
+          key: cef-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('jellium-desktop-host-ext/src/Cargo.lock') }}
 
       - name: Fetch CEF
-        working-directory: jellium-desktop
+        working-directory: jellium-desktop-host-ext
         run: cargo xtask fetch-cef
+
+      - name: Boundary audit
+        env:
+          JELLIUM_DIR: ${{ github.workspace }}/jellium-desktop-host-ext
+        run: ./scripts/boundary-audit.sh
+
+      - name: Protocol v2 harness
+        run: node scripts/protocol-v2-harness.mjs
 
       # Format only this crate — path-dep Jellium is pinned and linted upstream.
       - name: Format

@@ -1,10 +1,10 @@
 # Foreseer Desktop
 
-Native Foreseer shell backed by Jellium's opt-in external frontend runtime.
-Foreseer Desktop owns product configuration and behavior; Jellium supplies the
-native CEF/mpv playback mechanism.
+Native Foreseer shell backed by Jellium's opt-in `host-extension` runtime.
+Foreseer Desktop owns protocol v2, product policy, and injected assets; Jellium
+supplies CEF/mpv and a generic extension seam.
 
-**0.1.1 support:** Linux (Wayland primary, X11 best-effort), **from source**.
+**0.2 support:** Linux (Wayland primary, X11 best-effort), **from source**.
 Windows/macOS and packaged installers are not released yet.
 
 This binary links GPL-2.0-only Jellium code and is therefore GPL-2.0-only.
@@ -14,21 +14,25 @@ See [LICENSE](LICENSE).
 
 - Adjacent [Jellium](https://github.com/selmant/jellium-desktop) checkout at the
   commit in [`jellium.rev`](jellium.rev) (default layout:
-  `../jellium-desktop`)
+  `../jellium-desktop`, local thin-fork worktree may be `../jellium-desktop-host-ext`)
 - Rust stable, system `libmpv`, and the usual Linux native build deps
   (Wayland/X11, clang for bindgen)
 
 ```text
 Projects/
-  foreseer-desktop/   # this repo
-  jellium-desktop/    # pinned fork, external-frontend branch tip in jellium.rev
+  foreseer-desktop/              # this repo
+  jellium-desktop/               # pinned thin fork tip in jellium.rev
 ```
 
 ```sh
 git -C ../jellium-desktop fetch origin
 git -C ../jellium-desktop checkout "$(tr -d '[:space:]' < jellium.rev)"
 git -C ../jellium-desktop submodule update --init --recursive
+JELLIUM_DIR=../jellium-desktop ./scripts/boundary-audit.sh
 ```
+
+Architecture: [docs/integration-plan.md](docs/integration-plan.md).  
+Fork upgrades: [docs/upgrade-runbook.md](docs/upgrade-runbook.md).
 
 ## Configuration & CLI
 

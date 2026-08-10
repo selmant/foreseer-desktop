@@ -28,8 +28,16 @@
 - [x] Phase 3 Foreseer protocol + controller
 - [x] Phase 4 assets + live adapter
 - [x] Phase 5 Seerr v2 (code complete; deploy before desktop release)
-- [ ] Phase 6 gates + docs
+- [x] Phase 6 gates + docs (upstream PRs deferred / non-blocking)
 - [ ] Phase 7 Linux acceptance + cutover
+
+## Upstream PR drafts (Phase 6.4, non-blocking)
+
+Open against upstream Jellium without Foreseer names/endpoints in titles or bodies:
+
+1. Wayland full-buffer viewport during WSI resize (`de3c381`)
+2. mpv-proxy protocol error logging (`0a12974`)
+3. Generic host-extension seam / structured transport (`c9e8deb`) — after 1–2 land or as follow-up
 
 
 ## Triage notes (Phase 2)
