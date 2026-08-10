@@ -27,15 +27,14 @@ pub struct PendingAuthProofs {
 impl PendingAuthProofs {
     pub fn insert(&mut self, request_id: String, proof: AuthProof) {
         self.expire();
-        if self.proofs.len() >= MAX_PENDING_AUTH_PROOFS {
-            if let Some(oldest) = self
+        if self.proofs.len() >= MAX_PENDING_AUTH_PROOFS
+            && let Some(oldest) = self
                 .proofs
                 .iter()
                 .min_by_key(|(_, p)| p.created_at)
                 .map(|(k, _)| k.clone())
-            {
-                self.proofs.remove(&oldest);
-            }
+        {
+            self.proofs.remove(&oldest);
         }
         self.proofs.insert(request_id, proof);
     }
@@ -131,10 +130,7 @@ struct RedemptionBootstrapResponse {
     bootstrap_generation: Option<String>,
 }
 
-fn required_bootstrap_field(
-    value: Option<String>,
-    max: usize,
-) -> Result<String, AuthErrorCode> {
+fn required_bootstrap_field(value: Option<String>, max: usize) -> Result<String, AuthErrorCode> {
     let value = value.ok_or(AuthErrorCode::InvalidBootstrapResponse)?;
     if value.is_empty() || value.len() > max {
         return Err(AuthErrorCode::InvalidBootstrapResponse);
@@ -146,7 +142,10 @@ pub fn parse_redemption_bootstrap(body: &str) -> Result<SessionBootstrap, AuthEr
     let parsed: RedemptionBootstrapResponse =
         serde_json::from_str(body).map_err(|_| AuthErrorCode::InvalidBootstrapResponse)?;
     let bootstrap = SessionBootstrap {
-        server_url: required_bootstrap_field(parsed.server_url, crate::config::MAX_FORESEER_URL_LEN)?,
+        server_url: required_bootstrap_field(
+            parsed.server_url,
+            crate::config::MAX_FORESEER_URL_LEN,
+        )?,
         server_id: required_bootstrap_field(parsed.server_id, BOOTSTRAP_ID_MAX_LEN)?,
         user_id: required_bootstrap_field(parsed.user_id, BOOTSTRAP_ID_MAX_LEN)?,
         device_id: required_bootstrap_field(parsed.device_id, BOOTSTRAP_ID_MAX_LEN)?,
@@ -185,10 +184,7 @@ pub fn redeem_ticket(
     };
     let status = response.status().as_u16();
     if !(200..300).contains(&status) {
-        let body = response
-            .body_mut()
-            .read_to_string()
-            .unwrap_or_default();
+        let body = response.body_mut().read_to_string().unwrap_or_default();
         return Err(map_http_error_body(&body));
     }
     let body = response

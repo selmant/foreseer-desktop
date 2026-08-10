@@ -358,10 +358,8 @@ impl<R: RuntimeOps> Controller<R> {
                 let ok = self.runtime.complete_setup_navigation(&normalized);
                 if ok {
                     self.state = AppState::Starting;
-                    self.runtime.post_frontend_event(NativeEventV2::new(
-                        id,
-                        "save-config-success",
-                    ));
+                    self.runtime
+                        .post_frontend_event(NativeEventV2::new(id, "save-config-success"));
                 } else {
                     self.emit_error(&id, AuthErrorCode::InvalidRequest);
                 }

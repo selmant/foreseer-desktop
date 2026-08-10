@@ -46,7 +46,11 @@ pub enum NativeCommandV2 {
     #[serde(rename = "session.clear")]
     SessionClear { id: String },
     #[serde(rename = "play.item")]
-    PlayItem { id: String, #[serde(rename = "itemId")] item_id: String },
+    PlayItem {
+        id: String,
+        #[serde(rename = "itemId")]
+        item_id: String,
+    },
     #[serde(rename = "setup.check")]
     SetupCheck {
         id: String,
@@ -233,10 +237,7 @@ mod tests {
         assert_eq!(value["host"]["name"], HOST_NAME);
         assert_eq!(value["eventName"], EVENT_NAME);
         assert_eq!(value["limits"]["maxPayloadBytes"], MAX_PAYLOAD_BYTES);
-        assert_eq!(
-            value["host"]["versionSource"],
-            "package-metadata"
-        );
+        assert_eq!(value["host"]["versionSource"], "package-metadata");
         let version = env!("CARGO_PKG_VERSION");
         assert!(!version.is_empty());
     }

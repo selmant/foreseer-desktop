@@ -33,7 +33,8 @@ pub enum SessionMatchError {
 
 impl SessionBootstrap {
     pub fn validate_shape(&self) -> Result<(), &'static str> {
-        validate_bootstrap_server_url(&self.server_url).map_err(|_| "invalid_bootstrap_response")?;
+        validate_bootstrap_server_url(&self.server_url)
+            .map_err(|_| "invalid_bootstrap_response")?;
         for (value, name) in [
             (&self.server_id, "server_id"),
             (&self.user_id, "user_id"),

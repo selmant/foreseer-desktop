@@ -9,10 +9,10 @@ use jfn_rust::{
 };
 use serde_json::json;
 
-use crate::auth::{redeem_ticket, redemption_url, AuthErrorCode};
-use crate::config::{validate_foreseer_url, AppConfig};
+use crate::auth::{AuthErrorCode, redeem_ticket, redemption_url};
+use crate::config::{AppConfig, validate_foreseer_url};
 use crate::controller::{AppState, Controller, ControllerEvent, Presentation, RuntimeOps};
-use crate::protocol::{parse_command, serialize_event, NativeCommandV2, NativeEventV2};
+use crate::protocol::{NativeCommandV2, NativeEventV2, parse_command, serialize_event};
 use crate::session::SessionBootstrap;
 
 struct HandleRuntime {
@@ -99,11 +99,7 @@ impl ForeseerExtension {
     }
 
     fn upgrade(&self) -> Option<Arc<Self>> {
-        self.self_weak
-            .lock()
-            .ok()?
-            .as_ref()?
-            .upgrade()
+        self.self_weak.lock().ok()?.as_ref()?.upgrade()
     }
 
     fn with_inner<R>(&self, f: impl FnOnce(&mut Inner) -> R) -> Option<R> {
@@ -152,11 +148,7 @@ impl HostExtension for ForeseerExtension {
             .lock()
             .map(|g| g.clone())
             .unwrap_or_default();
-        let allow_insecure_http = self
-            .allow_insecure_http
-            .lock()
-            .map(|g| *g)
-            .unwrap_or(false);
+        let allow_insecure_http = self.allow_insecure_http.lock().map(|g| *g).unwrap_or(false);
         let agent = ureq::Agent::config_builder()
             .timeout_global(Some(Duration::from_secs(15)))
             .build()
@@ -261,8 +253,7 @@ impl ForeseerExtension {
                         item_id: item_id.clone(),
                     });
                     if ok && matches!(inner.controller.state(), AppState::Resolving) {
-                        let payload =
-                            json!({ "type": "play.item", "itemId": item_id, "id": id });
+                        let payload = json!({ "type": "play.item", "itemId": item_id, "id": id });
                         if let Ok(text) = serde_json::to_string(&payload) {
                             let _ = inner
                                 .runtime

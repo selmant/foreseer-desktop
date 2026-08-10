@@ -1,6 +1,6 @@
 use base64::Engine;
 use directories::ProjectDirs;
-use foreseer_desktop::config::{validate_foreseer_url, AppConfig};
+use foreseer_desktop::config::{AppConfig, validate_foreseer_url};
 use foreseer_desktop::extension::ForeseerExtension;
 use jfn_rust::{HostExtensionDescriptor, HostOptions};
 use std::sync::Arc;
