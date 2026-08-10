@@ -410,31 +410,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "calloop"
-version = "0.14.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4dbf9978365bac10f54d1d4b04f7ce4427e51f71d61f2fe15e3fed5166474df7"
-dependencies = [
- "bitflags 2.13.1",
- "polling",
- "rustix",
- "slab",
- "tracing",
-]
-
-[[package]]
-name = "calloop-wayland-source"
-version = "0.4.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "138efcf0940a02ebf0cc8d1eff41a1682a46b431630f4c52450d6265876021fa"
-dependencies = [
- "calloop",
- "rustix",
- "wayland-backend",
- "wayland-client",
-]
-
-[[package]]
 name = "cc"
 version = "1.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -474,7 +449,7 @@ version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6fac387a98bb7c37292057cffc56d62ecb629900026402633ae9160df93a8766"
 dependencies = [
- "nom 7.1.3",
+ "nom",
 ]
 
 [[package]]
@@ -790,15 +765,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "dirs"
-version = "6.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c3e8aa94d75141228480295a7d0e7feb620b1a5ad9f12bc40be62411e38cce4e"
-dependencies = [
- "dirs-sys",
-]
-
-[[package]]
 name = "dirs-sys"
 version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -841,12 +807,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "doctest-file"
-version = "1.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c2db04e74f0a9a93103b50e90b96024c9b2bdca8bce6a632ec71b88736d3d359"
-
-[[package]]
 name = "document-features"
 version = "0.2.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -880,12 +840,6 @@ dependencies = [
  "thiserror",
  "ureq",
 ]
-
-[[package]]
-name = "drm-fourcc"
-version = "2.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0aafbcdb8afc29c1a7ee5fbe53b5d62f4565b35a042a662ca9fecd0b54dae6f4"
 
 [[package]]
 name = "dunce"
@@ -1039,12 +993,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5baebc0774151f905a1a2cc41989300b1e6fbb29aff0ceffa1064fdd3088d582"
 
 [[package]]
-name = "fixedbitset"
-version = "0.5.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1d674e81391d1e1ab681a28d99df07927c6d4aa5b027d7da16ba32d1d21ecd99"
-
-[[package]]
 name = "flate2"
 version = "1.1.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1059,12 +1007,6 @@ name = "fnv"
 version = "1.0.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3f9eec918d3f24069decb9af1554cad7c880e2da24a9afd88aca000531ab82c1"
-
-[[package]]
-name = "foldhash"
-version = "0.1.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d9c4f5dac5e15c24eb999c26181a6ca40b39fe946cbe4c263c7209467bc83af2"
 
 [[package]]
 name = "foldhash"
@@ -2107,22 +2049,13 @@ checksum = "e5274423e17b7c9fc20b6e7e208532f9b19825d82dfd615708b70edd83df41f1"
 
 [[package]]
 name = "hashbrown"
-version = "0.15.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9229cfe53dfd69f0609a49f65461bd93001ea1ef889cd5529dd176593f5338a1"
-dependencies = [
- "foldhash 0.1.5",
-]
-
-[[package]]
-name = "hashbrown"
 version = "0.16.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "841d1cc9bed7f9236f321df977030373f4a4163ae1a7dbfe1a51a2c1a51d9100"
 dependencies = [
  "allocator-api2",
  "equivalent",
- "foldhash 0.2.0",
+ "foldhash",
 ]
 
 [[package]]
@@ -2133,7 +2066,7 @@ checksum = "ed5909b6e89a2db4456e54cd5f673791d7eca6732202bbf2a9cc504fe2f9b84a"
 dependencies = [
  "allocator-api2",
  "equivalent",
- "foldhash 0.2.0",
+ "foldhash",
 ]
 
 [[package]]
@@ -2307,21 +2240,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "interprocess"
-version = "2.4.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "798de1433ba514cc6c04c4144c2469af81396e4906195218737c776d47769572"
-dependencies = [
- "doctest-file",
- "futures-core",
- "libc",
- "recvmsg",
- "tokio",
- "widestring",
- "windows-sys 0.61.2",
-]
-
-[[package]]
 name = "is_terminal_polyfill"
 version = "1.70.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2353,23 +2271,17 @@ name = "jfn-cef"
 version = "0.1.0-dev"
 dependencies = [
  "cef",
- "crossbeam-channel",
- "crossbeam-utils",
  "gix",
  "jfn-color",
  "jfn-config",
- "jfn-gpu-paint",
  "jfn-input",
  "jfn-jellyfin",
- "jfn-js-json",
  "jfn-logging",
  "jfn-mpv",
  "jfn-paths",
  "jfn-platform-abi",
  "jfn-playback",
- "nix",
  "parking_lot",
- "serde",
  "serde_json",
  "slotmap",
  "tracing",
@@ -2392,11 +2304,9 @@ name = "jfn-config"
 version = "0.1.0-dev"
 dependencies = [
  "gethostname",
- "jfn-mailbox",
  "jfn-paths",
  "jfn-platform-abi",
  "parking_lot",
- "serde",
  "serde_json",
 ]
 
@@ -2406,9 +2316,6 @@ version = "0.1.0-dev"
 dependencies = [
  "ash",
  "nix",
- "objc2",
- "objc2-io-surface",
- "objc2-metal",
  "parking_lot",
  "pollster",
  "raw-window-handle",
@@ -2416,7 +2323,6 @@ dependencies = [
  "tracing",
  "wgpu",
  "wgpu-hal",
- "windows",
 ]
 
 [[package]]
@@ -2425,34 +2331,13 @@ version = "0.1.0-dev"
 dependencies = [
  "jfn-platform-abi",
  "jfn-playback",
-]
-
-[[package]]
-name = "jfn-instance-ipc"
-version = "0.1.0-dev"
-dependencies = [
- "interprocess",
- "jfn-paths",
- "jfn-platform-abi",
- "serde",
- "serde_json",
- "tokio",
- "tracing",
+ "parking_lot",
 ]
 
 [[package]]
 name = "jfn-jellyfin"
 version = "0.1.0-dev"
 dependencies = [
- "serde",
- "serde_json",
-]
-
-[[package]]
-name = "jfn-js-json"
-version = "0.1.0-dev"
-dependencies = [
- "serde",
  "serde_json",
 ]
 
@@ -2461,18 +2346,13 @@ name = "jfn-linux-util"
 version = "0.1.0-dev"
 dependencies = [
  "clap",
- "cosmic-text",
- "drm-fourcc",
  "jfn-input",
- "jfn-mailbox",
  "jfn-platform-abi",
- "khronos-egl",
  "libloading 0.9.0",
  "nix",
  "parking_lot",
- "tiny-skia",
  "tracing",
- "xkbcommon 0.9.0",
+ "xkbcommon",
  "zbus",
 ]
 
@@ -2480,15 +2360,13 @@ dependencies = [
 name = "jfn-logging"
 version = "0.1.0-dev"
 dependencies = [
- "jfn-wake-event",
- "memchr",
  "nix",
  "parking_lot",
  "time",
  "tracing",
  "tracing-appender",
+ "tracing-core",
  "tracing-subscriber",
- "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -2496,10 +2374,8 @@ name = "jfn-macos"
 version = "0.1.0-dev"
 dependencies = [
  "cef",
- "dispatch2",
  "jfn-cef",
  "jfn-compositor-core",
- "jfn-gpu-paint",
  "jfn-input",
  "jfn-logging",
  "jfn-macos-sink",
@@ -2509,12 +2385,7 @@ dependencies = [
  "libc",
  "nix",
  "objc2",
- "objc2-app-kit",
- "objc2-core-foundation",
  "objc2-foundation",
- "objc2-io-kit",
- "objc2-metal",
- "objc2-quartz-core",
  "parking_lot",
  "tracing",
 ]
@@ -2525,7 +2396,7 @@ version = "0.1.0-dev"
 dependencies = [
  "block2",
  "jfn-playback",
- "libloading 0.9.0",
+ "libc",
  "objc2",
  "objc2-app-kit",
  "objc2-foundation",
@@ -2534,18 +2405,17 @@ dependencies = [
 ]
 
 [[package]]
-name = "jfn-mailbox"
+name = "jfn-menu"
 version = "0.1.0-dev"
 dependencies = [
- "parking_lot",
+ "cosmic-text",
+ "tiny-skia",
 ]
 
 [[package]]
 name = "jfn-mpris"
 version = "0.1.0-dev"
 dependencies = [
- "async-io",
- "crossbeam-channel",
  "jfn-mpv",
  "jfn-platform-abi",
  "jfn-playback",
@@ -2558,11 +2428,9 @@ name = "jfn-mpv"
 version = "0.1.0-dev"
 dependencies = [
  "bindgen",
- "crossbeam-channel",
  "jfn-color",
  "parking_lot",
  "pkg-config",
- "thiserror",
  "tracing",
 ]
 
@@ -2570,9 +2438,6 @@ dependencies = [
 name = "jfn-paths"
 version = "0.1.0-dev"
 dependencies = [
- "dirs",
- "nix",
- "parking_lot",
  "tempfile",
 ]
 
@@ -2581,28 +2446,20 @@ name = "jfn-platform-abi"
 version = "0.1.0-dev"
 dependencies = [
  "cef",
- "jfn-gpu-paint",
- "jfn-paths",
+ "libc",
  "nix",
  "parking_lot",
- "serde",
- "serde_json",
- "tracing",
- "uuid",
 ]
 
 [[package]]
 name = "jfn-playback"
 version = "0.1.0-dev"
 dependencies = [
- "crossbeam-channel",
- "crossbeam-utils",
- "jfn-js-json",
  "jfn-mpv",
  "jfn-platform-abi",
  "jfn-wake-event",
  "parking_lot",
- "serde",
+ "serde_json",
 ]
 
 [[package]]
@@ -2615,7 +2472,6 @@ dependencies = [
  "jfn-cef",
  "jfn-color",
  "jfn-config",
- "jfn-instance-ipc",
  "jfn-jellyfin",
  "jfn-linux-util",
  "jfn-logging",
@@ -2629,9 +2485,7 @@ dependencies = [
  "jfn-windows",
  "jfn-x11",
  "parking_lot",
- "serde",
  "serde_json",
- "tokio",
  "tracing",
  "url",
  "uuid",
@@ -2641,7 +2495,6 @@ dependencies = [
 name = "jfn-wake-event"
 version = "0.1.0-dev"
 dependencies = [
- "calloop",
  "nix",
  "windows-sys 0.61.2",
 ]
@@ -2650,20 +2503,20 @@ dependencies = [
 name = "jfn-wayland"
 version = "0.1.0-dev"
 dependencies = [
- "calloop",
- "calloop-wayland-source",
  "cef",
- "crossbeam-channel",
  "error_reporter",
  "jfn-gpu-paint",
  "jfn-input",
  "jfn-linux-util",
- "jfn-mailbox",
+ "jfn-menu",
  "jfn-mpris",
+ "jfn-mpv",
  "jfn-platform-abi",
  "jfn-playback",
  "jfn-wake-event",
+ "libc",
  "libloading 0.9.0",
+ "memmap2",
  "nix",
  "parking_lot",
  "smithay-client-toolkit",
@@ -2673,9 +2526,9 @@ dependencies = [
  "wayland-client",
  "wayland-protocols",
  "wayland-protocols-plasma",
- "wl-clipboard-rs",
+ "wayland-scanner",
  "wl-proxy",
- "xkbcommon 0.9.0",
+ "xkbcommon",
 ]
 
 [[package]]
@@ -2684,7 +2537,6 @@ version = "0.1.0-dev"
 dependencies = [
  "cef",
  "jfn-compositor-core",
- "jfn-gpu-paint",
  "jfn-input",
  "jfn-mpv",
  "jfn-platform-abi",
@@ -2701,6 +2553,7 @@ dependencies = [
 name = "jfn-windows-sink"
 version = "0.1.0-dev"
 dependencies = [
+ "jfn-mpv",
  "jfn-playback",
  "tracing",
  "windows",
@@ -2712,33 +2565,25 @@ dependencies = [
 name = "jfn-x11"
 version = "0.1.0-dev"
 dependencies = [
- "arc-swap",
- "calloop",
  "cef",
- "crossbeam-channel",
  "cursor-icon",
- "gethostname",
  "jfn-compositor-core",
  "jfn-gpu-paint",
  "jfn-input",
  "jfn-linux-util",
- "jfn-mailbox",
+ "jfn-menu",
  "jfn-mpris",
  "jfn-mpv",
- "jfn-paths",
  "jfn-platform-abi",
  "jfn-playback",
  "jfn-wake-event",
- "memmap2",
+ "libc",
  "nix",
  "parking_lot",
- "slotmap",
- "tempfile",
- "thiserror",
  "tracing",
  "x11rb",
  "xcb",
- "xkbcommon 0.9.0",
+ "xkbcommon",
 ]
 
 [[package]]
@@ -3037,17 +2882,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "mio"
-version = "1.2.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "30d65c71f1ce40ab09135ce117d742b9f8a19ff91a41a8b57ed50bc2de59c427"
-dependencies = [
- "libc",
- "wasi",
- "windows-sys 0.61.2",
-]
-
-[[package]]
 name = "naga"
 version = "30.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3115,15 +2949,6 @@ checksum = "d273983c5a657a70a3e8f2a01329822f3b8c8172b73826411a55751e404a0a4a"
 dependencies = [
  "memchr",
  "minimal-lexical",
-]
-
-[[package]]
-name = "nom"
-version = "8.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "df9761775871bdef83bee530e60050f7e54b1105350d6884eb0fb4f46c2f9405"
-dependencies = [
- "memchr",
 ]
 
 [[package]]
@@ -3308,15 +3133,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "objc2-io-kit"
-version = "0.3.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "33fafba39597d6dc1fb709123dfa8289d39406734be322956a69f0931c73bb15"
-dependencies = [
- "objc2-core-foundation",
-]
-
-[[package]]
 name = "objc2-io-surface"
 version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3352,7 +3168,6 @@ dependencies = [
  "block2",
  "objc2",
  "objc2-foundation",
- "objc2-io-surface",
 ]
 
 [[package]]
@@ -3407,16 +3222,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "os_pipe"
-version = "1.2.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7d8fae84b431384b68627d0f9b3b1245fcf9f46f6c0e3dc902e9dce64edd1967"
-dependencies = [
- "libc",
- "windows-sys 0.61.2",
-]
-
-[[package]]
 name = "parking"
 version = "2.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3450,17 +3255,6 @@ name = "percent-encoding"
 version = "2.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9b4f627cb1b25917193a259e49bdad08f671f8d9708acfd5fe0a8c1455d87220"
-
-[[package]]
-name = "petgraph"
-version = "0.8.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8701b58ea97060d5e5b155d383a69952a60943f0e6dfe30b04c287beb0b27455"
-dependencies = [
- "fixedbitset",
- "hashbrown 0.15.5",
- "indexmap",
-]
 
 [[package]]
 name = "phf"
@@ -3777,12 +3571,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "recvmsg"
-version = "1.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d3edd4d5d42c92f0a659926464d4cce56b562761267ecf0f469d85b7de384175"
-
-[[package]]
 name = "redox_syscall"
 version = "0.5.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4007,6 +3795,7 @@ version = "1.0.151"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c841b55ecdae098c80dcae9cf767f6f8a0c2cdb3416bbef72181df4d0fe73f14"
 dependencies = [
+ "indexmap",
  "itoa",
  "memchr",
  "serde",
@@ -4164,18 +3953,18 @@ checksum = "8ed6a63f02c8539c91a8685a86f4099661ba3da017932f6ebbea6de3f0fa7c90"
 
 [[package]]
 name = "smithay-client-toolkit"
-version = "0.21.1"
+version = "0.20.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "74dc9ee14b0fdcb535f9556141bacac070c994a977d2240ee455d7438a617f00"
+checksum = "0512da38f5e2b31201a93524adb8d3136276fa4fe4aafab4e1f727a82b534cc0"
 dependencies = [
  "bitflags 2.13.1",
- "bytemuck",
  "cursor-icon",
+ "libc",
  "log",
  "memmap2",
- "pkg-config",
  "rustix",
  "thiserror",
+ "wayland-backend",
  "wayland-client",
  "wayland-csd-frame",
  "wayland-cursor",
@@ -4184,7 +3973,6 @@ dependencies = [
  "wayland-protocols-misc",
  "wayland-protocols-wlr",
  "wayland-scanner",
- "xkbcommon 0.8.0",
  "xkeysym",
 ]
 
@@ -4193,16 +3981,6 @@ name = "smol_str"
 version = "0.3.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4aaa7368fcf4852a4c2dd92df0cace6a71f2091ca0a23391ce7f3a31833f1523"
-
-[[package]]
-name = "socket2"
-version = "0.6.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c3d1e2c7f27f8d4cb10542a02c49005dbd6e93095799d6f3be745fae9f8fedd4"
-dependencies = [
- "libc",
- "windows-sys 0.61.2",
-]
 
 [[package]]
 name = "socks"
@@ -4470,32 +4248,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1f3ccbac311fea05f86f61904b462b55fb3df8837a366dfc601a0161d0532f20"
 
 [[package]]
-name = "tokio"
-version = "1.53.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "202caea871b69668250d242070849eb495be178ed697a3e98aebce5bc81a0bed"
-dependencies = [
- "bytes",
- "libc",
- "mio",
- "pin-project-lite",
- "socket2",
- "tokio-macros",
- "windows-sys 0.61.2",
-]
-
-[[package]]
-name = "tokio-macros"
-version = "2.7.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "78773a2a397f451582ce068015985c33193cf6dea8b74d2a639fe457b2f07b0e"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 3.0.3",
-]
-
-[[package]]
 name = "toml"
 version = "1.1.4+spec-1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4552,7 +4304,6 @@ version = "0.1.44"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "63e71662fa4b2a2c3a26f570f037eb95bb1f85397f3cd8076caed2f026a6d100"
 dependencies = [
- "log",
  "pin-project-lite",
  "tracing-attributes",
  "tracing-core",
@@ -4619,17 +4370,6 @@ dependencies = [
  "tracing",
  "tracing-core",
  "tracing-log",
-]
-
-[[package]]
-name = "tree_magic_mini"
-version = "3.2.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b8765b90061cba6c22b5831f675da109ae5561588290f9fa2317adab2714d5a6"
-dependencies = [
- "memchr",
- "nom 8.0.0",
- "petgraph",
 ]
 
 [[package]]
@@ -4996,9 +4736,9 @@ dependencies = [
 
 [[package]]
 name = "wayland-protocols-experimental"
-version = "20251230.0.3"
+version = "20250721.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "91c6c3e7178e553d093d46999032bc79aafea9dedd71dd702c8ace7bbc25cf13"
+checksum = "40a1f863128dcaaec790d7b4b396cc9b9a7a079e878e18c47e6c2d2c5a8dcbb1"
 dependencies = [
  "bitflags 2.13.1",
  "wayland-backend",
@@ -5272,12 +5012,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "widestring"
-version = "1.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "72069c3113ab32ab29e5584db3c6ec55d416895e60715417b5b883a357c3e471"
-
-[[package]]
 name = "winapi"
 version = "0.3.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5535,24 +5269,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1ebf944e87a7c253233ad6766e082e3cd714b5d03812acc24c318f549614536e"
 
 [[package]]
-name = "wl-clipboard-rs"
-version = "0.9.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e9651471a32e87d96ef3a127715382b2d11cc7c8bb9822ded8a7cc94072eb0a3"
-dependencies = [
- "libc",
- "log",
- "os_pipe",
- "rustix",
- "thiserror",
- "tree_magic_mini",
- "wayland-backend",
- "wayland-client",
- "wayland-protocols",
- "wayland-protocols-wlr",
-]
-
-[[package]]
 name = "wl-proxy"
 version = "0.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5625,17 +5341,6 @@ checksum = "163b33ed8786455e2fa5d72f554057ce3f3182425434f756cd39c99839d88e23"
 
 [[package]]
 name = "xkbcommon"
-version = "0.8.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8d66ca9352cbd4eecbbc40871d8a11b4ac8107cfc528a6e14d7c19c69d0e1ac9"
-dependencies = [
- "libc",
- "memmap2",
- "xkeysym",
-]
-
-[[package]]
-name = "xkbcommon"
 version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a7a974f48060a14e95705c01f24ad9c3345022f4d97441b8a36beb7ed5c4a02d"
@@ -5651,9 +5356,6 @@ name = "xkeysym"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b9cc00251562a284751c9973bace760d86c0276c471b4be569fe6b068ee97a56"
-dependencies = [
- "bytemuck",
-]
 
 [[package]]
 name = "xml-rs"
