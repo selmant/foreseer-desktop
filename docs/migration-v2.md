@@ -10,7 +10,7 @@
 | Old Jellium local hardened tip (dirty worktree left alone) | `8714375c676fd2ec771dc1471f954f409ef7b001` (tag `external-frontend-v1-local-hardened`) |
 | New upstream base (`upstream/main` at worktree create) | `28f2cf16a1f1b819884dd6a72919ca55bdf9bd73` |
 | Thin fork branch / worktree | `host-extension` at `/home/selmant/Projects/jellium-desktop-host-ext` |
-| Thin fork tip | `28f2cf16a1f1b819884dd6a72919ca55bdf9bd73` (update as generic commits land) |
+| Thin fork tip | `0a1297427b07b4040f5cd58a14b7ad9a0b85750d` |
 | Foreseer v2 branch / worktree | `feat/host-extension-v2` at `/home/selmant/Projects/foreseer-desktop-v2` |
 | Seerr v2 branch | `feat/foreseer-native-v2` from `develop` |
 
@@ -23,10 +23,19 @@
 ## Status
 
 - [x] Phase 0 baselines and worktrees
-- [ ] Phase 1 generic `host-extension` seam
-- [ ] Phase 2 fork triage
+- [x] Phase 1 generic `host-extension` seam
+- [x] Phase 2 fork triage
 - [ ] Phase 3 Foreseer protocol + controller
 - [ ] Phase 4 assets + live adapter
 - [ ] Phase 5 Seerr v2
 - [ ] Phase 6 gates + docs
 - [ ] Phase 7 Linux acceptance + cutover
+
+
+## Triage notes (Phase 2)
+
+- Dropped: CEF severity mapping (already on upstream `28f2cf1`).
+- Ported: Wayland full-buffer viewport during WSI resize; mpv-proxy protocol error logging.
+- Skipped for Jellium (move to Foreseer private-web asset): dirty `input-plugin.js` resume generation/getItem behavior.
+- Root-window diagnostics: upstream calloop path already logs dispatch/source failures; dirty hunk not ported.
+- Left behind: old `external-frontend` product protocol, `external-host.js`, protocol fixtures, auth/config traits.
