@@ -229,27 +229,35 @@
         const reqId = generateId();
 
         const listener = (e) => {
-          const detail = window.foreseerSetupProtocolV1.parseEvent(e.detail, reqId);
+          const detail = window.foreseerSetupProtocolV2.parseEvent(e.detail, reqId);
           if (detail) {
-            window.removeEventListener('jellium:host-event', listener);
+            window.removeEventListener('foreseer:native-event', listener);
             if (detail.type === 'error') {
-              reject(new Error(detail.message || 'Action failed'));
+              reject(new Error(detail.message || detail.errorCode || 'Action failed'));
             } else {
               resolve(detail);
             }
           }
         };
-        window.addEventListener('jellium:host-event', listener);
+        window.addEventListener('foreseer:native-event', listener);
 
         try {
-          if (action === 'test') {
-            window.jelliumHost.checkServerConnectivity(reqId, url, allowHttp);
-          } else {
-            window.jelliumHost.saveServerUrl(reqId, url, allowHttp);
+          const host = window.foreseerNative;
+          if (!host || typeof host.send !== 'function') {
+            throw new Error('Native integration missing');
+          }
+          const ok = host.send({
+            id: reqId,
+            type: action === 'test' ? 'setup.check' : 'setup.save',
+            url,
+            allowHttp: !!allowHttp,
+          });
+          if (!ok) {
+            throw new Error('Native call rejected');
           }
         } catch (err) {
-          window.removeEventListener('jellium:host-event', listener);
-          reject(new Error('Native integration missing'));
+          window.removeEventListener('foreseer:native-event', listener);
+          reject(new Error(err.message || 'Native integration missing'));
         }
       });
     }

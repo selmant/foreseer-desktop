@@ -3,7 +3,7 @@
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use crate::auth::{AuthErrorCode, AuthProof, PendingAuthProofs, new_auth_proof};
-use crate::config::{validate_foreseer_url, ForeseerUrlError};
+use crate::config::validate_foreseer_url;
 use crate::protocol::{NativeCommandV2, NativeEventV2};
 use crate::session::{ExpectedSession, SessionBootstrap, SessionMatchError};
 
@@ -537,7 +537,6 @@ mod tests {
 
     #[test]
     fn url_validation_errors_are_safe() {
-        let _ = ForeseerUrlError::Invalid.message();
         let mut ctl = Controller::new(MockRuntime::default(), true);
         ctl.handle_command(NativeCommandV2::SetupSave {
             id: "s1".into(),

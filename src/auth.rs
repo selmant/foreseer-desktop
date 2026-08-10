@@ -169,6 +169,35 @@ pub fn map_http_error_body(body: &str) -> AuthErrorCode {
         .unwrap_or(AuthErrorCode::InvalidRequest)
 }
 
+pub fn redeem_ticket(
+    agent: &ureq::Agent,
+    redeem_url: &str,
+    ticket: &str,
+    verifier: &str,
+) -> Result<SessionBootstrap, AuthErrorCode> {
+    let mut response = match agent.post(redeem_url).send_json(serde_json::json!({
+        "ticket": ticket,
+        "verifier": verifier,
+        "protocolVersion": PROTOCOL_VERSION,
+    })) {
+        Ok(r) => r,
+        Err(_) => return Err(AuthErrorCode::ServerUnreachable),
+    };
+    let status = response.status().as_u16();
+    if !(200..300).contains(&status) {
+        let body = response
+            .body_mut()
+            .read_to_string()
+            .unwrap_or_default();
+        return Err(map_http_error_body(&body));
+    }
+    let body = response
+        .body_mut()
+        .read_to_string()
+        .map_err(|_| AuthErrorCode::InvalidBootstrapResponse)?;
+    parse_redemption_bootstrap(&body)
+}
+
 pub fn random_bytes() -> [u8; 32] {
     let mut bytes = [0u8; 32];
     getrandom::fill(&mut bytes).expect("getrandom");

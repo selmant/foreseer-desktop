@@ -17,7 +17,7 @@ name = "foreseer-desktop"
 path = "src/main.rs"
 
 [dependencies]
-jfn-rust = { path = "../jellium-desktop/src/jfn_rust", features = ["external-frontend"] }
+jfn-rust = { path = "../jellium-desktop-host-ext/src/jfn_rust", features = ["host-extension"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 ureq = { version = "3", features = ["json"] }

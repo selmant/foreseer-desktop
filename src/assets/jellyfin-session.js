@@ -1,0 +1,200 @@
+// Private Jellyfin Web controller for Foreseer Desktop (protocol v2).
+// Receives bootstrap/play over jellium:extension-message; never exposes tokens to Foreseer UI.
+(function installForeseerPrivateSession() {
+  "use strict";
+  let attempts = 0;
+  let timer;
+  let generation;
+  let validationGeneration;
+  let externalPlayGeneration = 0;
+  let pendingPlayItemId = null;
+
+  function post(payload) {
+    try {
+      window.jmpNative.extensionPostMessage(JSON.stringify(payload));
+    } catch (_) {}
+  }
+
+  function acknowledge(bootstrap, client) {
+    const currentUserId =
+      typeof client.getCurrentUserId === "function" ? client.getCurrentUserId() : client.userId();
+    const normalizedAddress = String(client.serverAddress()).replace(/\/$/, "");
+    const expectedAddress = bootstrap.serverUrl.replace(/\/$/, "");
+    const matches =
+      normalizedAddress === expectedAddress &&
+      client.serverId() === bootstrap.serverId &&
+      currentUserId === bootstrap.userId &&
+      Boolean(client.deviceId()) &&
+      client.accessToken() === bootstrap.accessToken;
+    if (!matches) return false;
+    post({
+      type: "session.ready",
+      serverId: bootstrap.serverId,
+      userId: bootstrap.userId,
+      generation: bootstrap.generation,
+    });
+    delete window.__foreseerSessionBootstrap;
+    if (timer) window.clearInterval(timer);
+    if (pendingPlayItemId) {
+      const itemId = pendingPlayItemId;
+      pendingPlayItemId = null;
+      playItem(itemId);
+    }
+    return true;
+  }
+
+  function applyBootstrap() {
+    const bootstrap = window.__foreseerSessionBootstrap;
+    const client = window.ApiClient;
+    if (!bootstrap || !client) return;
+    if (generation !== bootstrap.generation) {
+      generation = bootstrap.generation;
+      attempts = 0;
+    }
+    attempts += 1;
+    if (attempts >= 120) {
+      if (timer) window.clearInterval(timer);
+      post({ type: "session.failed", generation: bootstrap.generation });
+      delete window.__foreseerSessionBootstrap;
+      return;
+    }
+    try {
+      const required = ["serverAddress", "serverId", "deviceId", "accessToken"];
+      if (!required.every((name) => typeof client[name] === "function")) return;
+      if (!window._jelliumPlaybackManager || typeof window._jelliumPlaybackManager.play !== "function") {
+        return;
+      }
+      if (
+        typeof client.setAuthenticationInfo === "function" &&
+        typeof client.getCurrentUser === "function" &&
+        typeof client.getCurrentUserId === "function"
+      ) {
+        const hasExpectedIdentity =
+          client.getCurrentUserId() === bootstrap.userId &&
+          client.accessToken() === bootstrap.accessToken;
+        if (!hasExpectedIdentity) {
+          if (!location.hash.toLowerCase().includes("/login")) return;
+          client.serverAddress(bootstrap.serverUrl);
+          if (client.serverId() !== bootstrap.serverId) return;
+          client.setAuthenticationInfo(bootstrap.accessToken, bootstrap.userId);
+        }
+        if (validationGeneration === bootstrap.generation) return;
+        validationGeneration = bootstrap.generation;
+        void Promise.resolve(client.getCurrentUser())
+          .then((user) => {
+            validationGeneration = undefined;
+            const current = window.__foreseerSessionBootstrap;
+            if (!current || current.generation !== bootstrap.generation || user?.Id !== bootstrap.userId) {
+              return;
+            }
+            acknowledge(bootstrap, client);
+          })
+          .catch(() => {
+            validationGeneration = undefined;
+          });
+        return;
+      }
+      if (typeof client.userId !== "function") return;
+      client.serverAddress(bootstrap.serverUrl);
+      client.serverId(bootstrap.serverId);
+      client.userId(bootstrap.userId);
+      client.deviceId(bootstrap.deviceId);
+      client.accessToken(bootstrap.accessToken);
+      acknowledge(bootstrap, client);
+    } catch (_) {}
+  }
+
+  function playItem(itemId) {
+    const apiClient = window.ApiClient;
+    const playbackManager = window._jelliumPlaybackManager;
+    const serverId = apiClient?.serverId?.();
+    const userId = apiClient?.getCurrentUserId?.();
+    if (!serverId || !userId || !playbackManager?.play) {
+      post({ type: "playback.stopped" });
+      return;
+    }
+    const playGen = ++externalPlayGeneration;
+    const play = (options) => Promise.resolve(playbackManager.play(options));
+    const playWithoutResume = () => play({ ids: [itemId], serverId });
+    const itemRequest = typeof apiClient.getItem === "function" ? apiClient.getItem(userId, itemId) : null;
+    if (!itemRequest) {
+      playWithoutResume().catch(() => post({ type: "playback.stopped" }));
+      return;
+    }
+    Promise.resolve(itemRequest)
+      .then((item) => {
+        if (playGen !== externalPlayGeneration) return;
+        if (!item?.Id) return playWithoutResume();
+        return play({
+          ids: [itemId],
+          serverId,
+          startPositionTicks: item.UserData?.PlaybackPositionTicks || 0,
+        });
+      }, () => {
+        if (playGen !== externalPlayGeneration) return;
+        return playWithoutResume();
+      })
+      .catch(() => {
+        if (playGen !== externalPlayGeneration) return;
+        post({ type: "playback.stopped" });
+      });
+  }
+
+  function clearSession() {
+    delete window.__foreseerSessionBootstrap;
+    pendingPlayItemId = null;
+    externalPlayGeneration += 1;
+    if (window._jelliumPlaybackManager?.stop) {
+      void Promise.resolve(window._jelliumPlaybackManager.stop()).catch(() => {});
+    }
+    const client = window.ApiClient;
+    if (!client) return;
+    if (typeof client.clearAuthenticationInfo === "function") {
+      client.clearAuthenticationInfo();
+      return;
+    }
+    if (typeof client.logout === "function") {
+      void Promise.resolve(client.logout()).catch(() => {});
+    }
+  }
+
+  window.addEventListener("jellium:extension-message", function (ev) {
+    let detail = ev.detail;
+    if (typeof detail === "string") {
+      try {
+        detail = JSON.parse(detail);
+      } catch (_) {
+        return;
+      }
+    }
+    if (!detail || typeof detail !== "object" || typeof detail.type !== "string") return;
+    if (detail.type === "session.bootstrap") {
+      window.__foreseerSessionBootstrap = {
+        serverUrl: detail.serverUrl,
+        serverId: detail.serverId,
+        userId: detail.userId,
+        deviceId: detail.deviceId,
+        accessToken: detail.accessToken,
+        generation: detail.bootstrapGeneration,
+      };
+      attempts = 0;
+      if (!timer) timer = window.setInterval(applyBootstrap, 250);
+      applyBootstrap();
+      return;
+    }
+    if (detail.type === "session.clear") {
+      clearSession();
+      return;
+    }
+    if (detail.type === "play.item" && typeof detail.itemId === "string") {
+      if (!window.__foreseerSessionBootstrap && window.ApiClient?.accessToken?.()) {
+        playItem(detail.itemId);
+      } else {
+        pendingPlayItemId = detail.itemId;
+        applyBootstrap();
+      }
+    }
+  });
+
+  if (!timer) timer = window.setInterval(applyBootstrap, 250);
+})();

@@ -3,6 +3,7 @@
 pub mod auth;
 pub mod config;
 pub mod controller;
+pub mod extension;
 pub mod protocol;
 pub mod session;
 
