@@ -229,7 +229,7 @@
         const reqId = generateId();
 
         const listener = (e) => {
-          const detail = window.foreseerSetupProtocolV2.parseEvent(e.detail, reqId);
+          const detail = window.foreseerSetupProtocolV1.parseEvent(e.detail, reqId);
           if (detail) {
             window.removeEventListener('foreseer:native-event', listener);
             if (detail.type === 'error') {

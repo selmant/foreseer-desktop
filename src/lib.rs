@@ -1,4 +1,4 @@
-//! Foreseer Desktop library: protocol v2, config, auth, and controller.
+//! Foreseer Desktop library: protocol v1, config, auth, and controller.
 
 pub mod auth;
 pub mod config;
@@ -12,5 +12,5 @@ pub use config::{
 };
 pub use controller::{AppState, Controller, ControllerEvent, RuntimeOps};
 pub use protocol::{
-    NativeCommandV2, NativeEventV2, PROTOCOL_VERSION, parse_command, serialize_event,
+    NativeCommandV1, NativeEventV1, PROTOCOL_VERSION, parse_command, serialize_event,
 };

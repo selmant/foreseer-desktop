@@ -85,8 +85,8 @@ jobs:
           JELLIUM_DIR: ${{ github.workspace }}/jellium-desktop-host-ext
         run: ./scripts/boundary-audit.sh
 
-      - name: Protocol v2 harness
-        run: node scripts/protocol-v2-harness.mjs
+      - name: Protocol v1 harness
+        run: node scripts/protocol-v1-harness.mjs
 
       # Format only this crate — path-dep Jellium is pinned and linted upstream.
       - name: Format

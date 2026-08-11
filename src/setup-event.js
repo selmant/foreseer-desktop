@@ -11,7 +11,7 @@
     if (
       !detail ||
       typeof detail !== "object" ||
-      detail.protocolVersion !== 2 ||
+      detail.protocolVersion !== 1 ||
       detail.id !== expectedId ||
       !eventTypes.includes(detail.type)
     ) {
@@ -32,7 +32,7 @@
       return undefined;
     }
     return Object.freeze({
-      protocolVersion: 2,
+      protocolVersion: 1,
       id: detail.id,
       type: detail.type,
       status: detail.status ?? null,
@@ -41,7 +41,7 @@
     });
   }
 
-  Object.defineProperty(scope, "foreseerSetupProtocolV2", {
+  Object.defineProperty(scope, "foreseerSetupProtocolV1", {
     configurable: false,
     enumerable: false,
     writable: false,

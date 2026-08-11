@@ -1,9 +1,9 @@
-//! Protocol v2 command/event envelopes.
+//! Protocol v1 command/event envelopes.
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-pub const PROTOCOL_VERSION: u8 = 2;
+pub const PROTOCOL_VERSION: u8 = 1;
 pub const HOST_NAME: &str = "foreseer-desktop";
 pub const EVENT_NAME: &str = "foreseer:native-event";
 pub const REQUEST_ID_MAX_LENGTH: usize = 64;
@@ -38,7 +38,7 @@ pub fn valid_ticket(ticket: &str) -> bool {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "type", deny_unknown_fields)]
-pub enum NativeCommandV2 {
+pub enum NativeCommandV1 {
     #[serde(rename = "auth.challenge")]
     AuthChallenge { id: String },
     #[serde(rename = "auth.complete")]
@@ -75,7 +75,7 @@ pub enum NativeCommandV2 {
     AppQuit { id: String },
 }
 
-impl NativeCommandV2 {
+impl NativeCommandV1 {
     pub fn id(&self) -> &str {
         match self {
             Self::AuthChallenge { id }
@@ -110,7 +110,7 @@ impl NativeCommandV2 {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct NativeEventV2 {
+pub struct NativeEventV1 {
     pub protocol_version: u8,
     pub id: String,
     #[serde(rename = "type")]
@@ -127,7 +127,7 @@ pub struct NativeEventV2 {
     pub payload: Option<Value>,
 }
 
-impl NativeEventV2 {
+impl NativeEventV1 {
     pub fn new(id: impl Into<String>, event_type: impl Into<String>) -> Self {
         Self {
             protocol_version: PROTOCOL_VERSION,
@@ -174,19 +174,19 @@ pub enum ParseError {
     Validation(&'static str),
 }
 
-pub fn parse_command(bytes: &[u8]) -> Result<NativeCommandV2, ParseError> {
+pub fn parse_command(bytes: &[u8]) -> Result<NativeCommandV1, ParseError> {
     if bytes.len() > MAX_PAYLOAD_BYTES {
         return Err(ParseError::Oversized);
     }
     let text = std::str::from_utf8(bytes).map_err(|_| ParseError::NonUtf8)?;
-    let command: NativeCommandV2 = serde_json::from_str(text).map_err(|_| ParseError::Json)?;
+    let command: NativeCommandV1 = serde_json::from_str(text).map_err(|_| ParseError::Json)?;
     command
         .validate()
         .map_err(ParseError::Validation)
         .map(|_| command)
 }
 
-pub fn serialize_event(event: &NativeEventV2) -> Result<Vec<u8>, ParseError> {
+pub fn serialize_event(event: &NativeEventV1) -> Result<Vec<u8>, ParseError> {
     let text = serde_json::to_string(event).map_err(|_| ParseError::Json)?;
     if text.len() > MAX_PAYLOAD_BYTES {
         return Err(ParseError::Oversized);
@@ -202,7 +202,7 @@ mod tests {
     fn parses_play_item_and_denies_unknown_fields() {
         let ok = br#"{"id":"req-1","type":"play.item","itemId":"abc123"}"#;
         let cmd = parse_command(ok).unwrap();
-        assert!(matches!(cmd, NativeCommandV2::PlayItem { .. }));
+        assert!(matches!(cmd, NativeCommandV1::PlayItem { .. }));
 
         let bad = br#"{"id":"req-1","type":"play.item","itemId":"abc123","extra":true}"#;
         assert_eq!(parse_command(bad), Err(ParseError::Json));
@@ -231,7 +231,7 @@ mod tests {
 
     #[test]
     fn fixture_matches_package_version_and_limits() {
-        let fixture = include_str!("../protocol/protocol-v2.json");
+        let fixture = include_str!("../protocol/protocol-v1.json");
         let value: Value = serde_json::from_str(fixture).unwrap();
         assert_eq!(value["protocolVersion"], PROTOCOL_VERSION);
         assert_eq!(value["host"]["name"], HOST_NAME);
@@ -244,7 +244,7 @@ mod tests {
 
     #[test]
     fn serialize_event_never_includes_secrets_fields_by_default() {
-        let event = NativeEventV2::new("r1", "error").with_error("ticket_expired");
+        let event = NativeEventV1::new("r1", "error").with_error("ticket_expired");
         let bytes = serialize_event(&event).unwrap();
         let text = String::from_utf8(bytes).unwrap();
         assert!(!text.contains("accessToken"));

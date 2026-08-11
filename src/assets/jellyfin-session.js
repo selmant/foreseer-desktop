@@ -1,5 +1,32 @@
-// Private Jellyfin Web controller for Foreseer Desktop (protocol v2).
+// Private Jellyfin Web controller for Foreseer Desktop (protocol v1).
 // Receives bootstrap/play over jellium:extension-message; never exposes tokens to Foreseer UI.
+(function capturePlaybackManagerFromInputPlugin() {
+  "use strict";
+  function wrapInputPluginClass() {
+    const Original = window._inputPlugin;
+    if (!Original || Original.__foreseerWrapped) {
+      return Boolean(Original && Original.__foreseerWrapped);
+    }
+    class ForeseerInputPlugin extends Original {
+      constructor(args) {
+        super(args);
+        if (args && args.playbackManager) {
+          window._jelliumPlaybackManager = args.playbackManager;
+        }
+      }
+    }
+    ForeseerInputPlugin.__foreseerWrapped = true;
+    window._inputPlugin = ForeseerInputPlugin;
+    return true;
+  }
+  if (!wrapInputPluginClass()) {
+    const id = window.setInterval(() => {
+      if (wrapInputPluginClass()) window.clearInterval(id);
+    }, 50);
+    window.setTimeout(() => window.clearInterval(id), 10000);
+  }
+})();
+
 (function installForeseerPrivateSession() {
   "use strict";
   let attempts = 0;

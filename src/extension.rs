@@ -1,4 +1,4 @@
-//! Jellium `HostExtension` adapter for Foreseer protocol v2.
+//! Jellium `HostExtension` adapter for Foreseer protocol v1.
 
 use std::sync::{Arc, Mutex, Weak};
 use std::time::Duration;
@@ -12,7 +12,7 @@ use serde_json::json;
 use crate::auth::{AuthErrorCode, redeem_ticket, redemption_url};
 use crate::config::{AppConfig, validate_foreseer_url};
 use crate::controller::{AppState, Controller, ControllerEvent, Presentation, RuntimeOps};
-use crate::protocol::{NativeCommandV2, NativeEventV2, parse_command, serialize_event};
+use crate::protocol::{NativeCommandV1, NativeEventV1, parse_command, serialize_event};
 use crate::session::SessionBootstrap;
 
 struct HandleRuntime {
@@ -20,7 +20,7 @@ struct HandleRuntime {
 }
 
 impl RuntimeOps for HandleRuntime {
-    fn post_frontend_event(&mut self, event: NativeEventV2) {
+    fn post_frontend_event(&mut self, event: NativeEventV1) {
         if let Ok(bytes) = serialize_event(&event) {
             let _ = self.handle.post_message(ExtensionSource::Frontend, &bytes);
         }
@@ -59,6 +59,12 @@ impl RuntimeOps for HandleRuntime {
     }
 }
 
+#[derive(Clone)]
+struct PendingBootstrap {
+    request_id: String,
+    bootstrap: SessionBootstrap,
+}
+
 struct Inner {
     controller: Controller<HandleRuntime>,
     frontend_url: String,
@@ -66,6 +72,7 @@ struct Inner {
     agent: ureq::Agent,
     setup_agent: ureq::Agent,
     runtime: RuntimeHandle,
+    pending_bootstrap: Option<PendingBootstrap>,
 }
 
 pub struct ForeseerExtension {
@@ -107,18 +114,63 @@ impl ForeseerExtension {
     }
 
     fn enqueue(&self, event: ControllerEvent) {
-        let bootstrap = if let ControllerEvent::AuthRedeemed { bootstrap, .. } = &event {
-            Some(bootstrap.clone())
-        } else {
-            None
-        };
-        let runtime = self.with_inner(|inner| {
+        self.with_inner(|inner| {
+            match &event {
+                ControllerEvent::AuthRedeemed {
+                    request_id,
+                    bootstrap,
+                    ..
+                } => {
+                    inner.pending_bootstrap = Some(PendingBootstrap {
+                        request_id: request_id.clone(),
+                        bootstrap: bootstrap.clone(),
+                    });
+                    tracing::info!(
+                        target: "ForeseerExtension",
+                        "auth redeemed; waiting for primary web load before bootstrap"
+                    );
+                }
+                ControllerEvent::BootstrapReady { .. }
+                | ControllerEvent::BootstrapFailed { .. }
+                | ControllerEvent::AuthFailed { .. } => {
+                    inner.pending_bootstrap = None;
+                }
+                _ => {}
+            }
             inner.controller.handle_event(event);
-            inner.runtime.clone()
         });
-        if let (Some(bootstrap), Some(runtime)) = (bootstrap, runtime) {
-            Self::post_bootstrap(&runtime, &bootstrap);
-        }
+    }
+
+    fn deliver_pending_bootstrap(&self, loaded_url: &str) {
+        let Some((pending, runtime)) = self
+            .with_inner(|inner| {
+                let pending = inner.pending_bootstrap.as_ref()?;
+                let loaded = url::Url::parse(loaded_url).ok()?;
+                let expected = url::Url::parse(&pending.bootstrap.server_url).ok()?;
+                if loaded.origin() != expected.origin() {
+                    let request_id = pending.request_id.clone();
+                    inner.pending_bootstrap = None;
+                    inner.controller.handle_event(ControllerEvent::BootstrapFailed {
+                        request_id,
+                        code: AuthErrorCode::InvalidBootstrapResponse,
+                    });
+                    tracing::warn!(
+                        target: "ForeseerExtension",
+                        "primary web origin mismatch for pending bootstrap"
+                    );
+                    return None;
+                }
+                Some((pending.clone(), inner.runtime.clone()))
+            })
+            .flatten()
+        else {
+            return;
+        };
+        tracing::info!(
+            target: "ForeseerExtension",
+            "delivering session bootstrap to primary web"
+        );
+        Self::post_bootstrap(&runtime, &pending.bootstrap);
     }
 
     fn post_bootstrap(runtime: &RuntimeHandle, bootstrap: &SessionBootstrap) {
@@ -173,6 +225,7 @@ impl HostExtension for ForeseerExtension {
                 agent,
                 setup_agent,
                 runtime,
+                pending_bootstrap: None,
             });
         }
     }
@@ -185,6 +238,9 @@ impl HostExtension for ForeseerExtension {
     }
 
     fn on_runtime_event(&self, event: RuntimeEvent) {
+        if let RuntimeEvent::PrimaryWebLoaded { url } = &event {
+            self.deliver_pending_bootstrap(url);
+        }
         let mapped = match event {
             RuntimeEvent::PlaybackStarted => Some(ControllerEvent::PlaybackStarted),
             RuntimeEvent::PlaybackFinished => Some(ControllerEvent::PlaybackFinished),
@@ -202,11 +258,13 @@ impl HostExtension for ForeseerExtension {
 impl ForeseerExtension {
     fn admit_frontend(&self, payload: &[u8]) -> bool {
         let Ok(command) = parse_command(payload) else {
+            tracing::warn!(target: "ForeseerExtension", "rejected malformed frontend command");
             return false;
         };
 
         match command {
-            NativeCommandV2::AuthComplete { id, ticket } => {
+            NativeCommandV1::AuthComplete { id, ticket } => {
+                tracing::info!(target: "ForeseerExtension", "auth.complete admitted");
                 let Some((verifier, epoch, redeem_url, agent)) = self
                     .with_inner(|inner| {
                         let (verifier, epoch) = inner.controller.begin_auth_complete(&id)?;
@@ -222,33 +280,47 @@ impl ForeseerExtension {
                 };
                 std::thread::spawn(move || {
                     match redeem_ticket(&agent, &redeem_url, &ticket, &verifier) {
-                        Ok(bootstrap) => this.enqueue(ControllerEvent::AuthRedeemed {
-                            request_id: id,
-                            bootstrap,
-                            auth_epoch: epoch,
-                        }),
-                        Err(code) => this.enqueue(ControllerEvent::AuthFailed {
-                            request_id: id,
-                            code,
-                            auth_epoch: epoch,
-                        }),
+                        Ok(bootstrap) => {
+                            tracing::info!(target: "ForeseerExtension", "auth ticket redeemed");
+                            this.enqueue(ControllerEvent::AuthRedeemed {
+                                request_id: id,
+                                bootstrap,
+                                auth_epoch: epoch,
+                            })
+                        }
+                        Err(code) => {
+                            tracing::warn!(
+                                target: "ForeseerExtension",
+                                "auth ticket redeem failed: {:?}",
+                                code
+                            );
+                            this.enqueue(ControllerEvent::AuthFailed {
+                                request_id: id,
+                                code,
+                                auth_epoch: epoch,
+                            });
+                        }
                     }
                 });
                 true
             }
-            NativeCommandV2::SetupCheck {
+            NativeCommandV1::SetupCheck {
                 id,
                 url,
                 allow_http,
             } => self.start_setup_check(id, url, allow_http),
-            NativeCommandV2::SetupSave {
+            NativeCommandV1::SetupSave {
                 id,
                 url,
                 allow_http,
             } => self.save_setup(id, url, allow_http),
-            NativeCommandV2::PlayItem { id, item_id } => self
-                .with_inner(|inner| {
-                    let ok = inner.controller.handle_command(NativeCommandV2::PlayItem {
+            NativeCommandV1::PlayItem { id, item_id } => {
+                tracing::info!(
+                    target: "ForeseerExtension",
+                    "play.item admitted item_id={item_id}"
+                );
+                self.with_inner(|inner| {
+                    let ok = inner.controller.handle_command(NativeCommandV1::PlayItem {
                         id: id.clone(),
                         item_id: item_id.clone(),
                     });
@@ -262,12 +334,14 @@ impl ForeseerExtension {
                     }
                     ok
                 })
-                .unwrap_or(false),
-            NativeCommandV2::SessionClear { id } => self
+                .unwrap_or(false)
+            }
+            NativeCommandV1::SessionClear { id } => self
                 .with_inner(|inner| {
+                    inner.pending_bootstrap = None;
                     let ok = inner
                         .controller
-                        .handle_command(NativeCommandV2::SessionClear { id });
+                        .handle_command(NativeCommandV1::SessionClear { id });
                     if ok {
                         let payload = json!({ "type": "session.clear" });
                         if let Ok(text) = serde_json::to_string(&payload) {
@@ -279,9 +353,13 @@ impl ForeseerExtension {
                     ok
                 })
                 .unwrap_or(false),
-            other => self
-                .with_inner(|inner| inner.controller.handle_command(other))
-                .unwrap_or(false),
+            other => {
+                if matches!(&other, NativeCommandV1::AuthChallenge { .. }) {
+                    tracing::info!(target: "ForeseerExtension", "auth.challenge admitted");
+                }
+                self.with_inner(|inner| inner.controller.handle_command(other))
+                    .unwrap_or(false)
+            }
         }
     }
 
@@ -290,13 +368,13 @@ impl ForeseerExtension {
             .with_inner(|inner| {
                 if !inner.controller.in_setup() {
                     inner.controller.runtime.post_frontend_event(
-                        NativeEventV2::new(id.clone(), "error").with_error("invalid_request"),
+                        NativeEventV1::new(id.clone(), "error").with_error("invalid_request"),
                     );
                     return None;
                 }
                 if let Err(err) = validate_foreseer_url(&url, allow_http) {
                     inner.controller.runtime.post_frontend_event(
-                        NativeEventV2::new(id.clone(), "error")
+                        NativeEventV1::new(id.clone(), "error")
                             .with_error("invalid_request")
                             .with_message(err.message()),
                     );
@@ -326,7 +404,7 @@ impl ForeseerExtension {
                         match agent.post(&test_url).send_json(serde_json::json!({
                             "ticket": "test",
                             "verifier": "test",
-                            "protocolVersion": 2,
+                            "protocolVersion": 1,
                         })) {
                             Ok(r) => Ok(r.status().as_u16()),
                             Err(e) => Err(e.to_string()),
@@ -351,7 +429,7 @@ impl ForeseerExtension {
             Err(err) => {
                 let _ = self.with_inner(|inner| {
                     inner.controller.runtime.post_frontend_event(
-                        NativeEventV2::new(id, "error")
+                        NativeEventV1::new(id, "error")
                             .with_error("invalid_request")
                             .with_message(err.message()),
                     );
@@ -372,7 +450,7 @@ impl ForeseerExtension {
         self.with_inner(|inner| {
             inner.frontend_url = normalized.clone();
             inner.allow_insecure_http = allow_http;
-            inner.controller.handle_command(NativeCommandV2::SetupSave {
+            inner.controller.handle_command(NativeCommandV1::SetupSave {
                 id,
                 url: normalized,
                 allow_http,

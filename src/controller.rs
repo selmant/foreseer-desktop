@@ -1,10 +1,10 @@
-//! Pure application controller for protocol v2.
+//! Pure application controller for protocol v1.
 
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use crate::auth::{AuthErrorCode, AuthProof, PendingAuthProofs, new_auth_proof};
 use crate::config::validate_foreseer_url;
-use crate::protocol::{NativeCommandV2, NativeEventV2};
+use crate::protocol::{NativeCommandV1, NativeEventV1};
 use crate::session::{ExpectedSession, SessionBootstrap, SessionMatchError};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -28,7 +28,7 @@ pub enum Presentation {
 
 /// Mockable runtime surface used by the controller (Phase 3).
 pub trait RuntimeOps {
-    fn post_frontend_event(&mut self, event: NativeEventV2);
+    fn post_frontend_event(&mut self, event: NativeEventV1);
     fn set_presentation(&mut self, presentation: Presentation);
     fn navigate_primary_web(&mut self, url: &str) -> bool;
     fn complete_setup_navigation(&mut self, url: &str) -> bool;
@@ -122,41 +122,41 @@ impl<R: RuntimeOps> Controller<R> {
         self.active_request_id.as_deref()
     }
 
-    pub fn handle_command(&mut self, command: NativeCommandV2) -> bool {
+    pub fn handle_command(&mut self, command: NativeCommandV1) -> bool {
         if self.state == AppState::ShuttingDown {
             return false;
         }
         match command {
-            NativeCommandV2::AuthChallenge { id } => self.on_auth_challenge(id),
-            NativeCommandV2::AuthComplete { id: _, ticket: _ } => {
+            NativeCommandV1::AuthChallenge { id } => self.on_auth_challenge(id),
+            NativeCommandV1::AuthComplete { id: _, ticket: _ } => {
                 // Adapter must call begin_auth_complete(id) then redeem asynchronously.
                 true
             }
-            NativeCommandV2::SessionClear { id } => self.on_session_clear(id),
-            NativeCommandV2::PlayItem { id, item_id } => self.on_play_item(id, item_id),
-            NativeCommandV2::SetupCheck {
+            NativeCommandV1::SessionClear { id } => self.on_session_clear(id),
+            NativeCommandV1::PlayItem { id, item_id } => self.on_play_item(id, item_id),
+            NativeCommandV1::SetupCheck {
                 id,
                 url,
                 allow_http,
             } => self.on_setup_check(id, url, allow_http),
-            NativeCommandV2::SetupSave {
+            NativeCommandV1::SetupSave {
                 id,
                 url,
                 allow_http,
             } => self.on_setup_save(id, url, allow_http),
-            NativeCommandV2::WindowMinimize { .. } => {
+            NativeCommandV1::WindowMinimize { .. } => {
                 self.runtime.minimize();
                 true
             }
-            NativeCommandV2::WindowToggleMaximize { .. } => {
+            NativeCommandV1::WindowToggleMaximize { .. } => {
                 self.runtime.toggle_maximize();
                 true
             }
-            NativeCommandV2::WindowToggleFullscreen { .. } => {
+            NativeCommandV1::WindowToggleFullscreen { .. } => {
                 self.runtime.toggle_fullscreen();
                 true
             }
-            NativeCommandV2::AppQuit { .. } => {
+            NativeCommandV1::AppQuit { .. } => {
                 self.state = AppState::ShuttingDown;
                 self.runtime.request_shutdown();
                 true
@@ -212,7 +212,7 @@ impl<R: RuntimeOps> Controller<R> {
                     Ok(()) => {
                         self.state = AppState::Ready;
                         self.runtime
-                            .post_frontend_event(NativeEventV2::new(request_id, "ready"));
+                            .post_frontend_event(NativeEventV1::new(request_id, "ready"));
                     }
                     Err(_) => {
                         self.state = AppState::Degraded;
@@ -235,10 +235,10 @@ impl<R: RuntimeOps> Controller<R> {
                 }
                 match result {
                     Ok(status) => self.runtime.post_frontend_event(
-                        NativeEventV2::new(request_id, "connectivity-success").with_status(status),
+                        NativeEventV1::new(request_id, "connectivity-success").with_status(status),
                     ),
                     Err(message) => self.runtime.post_frontend_event(
-                        NativeEventV2::new(request_id, "error")
+                        NativeEventV1::new(request_id, "error")
                             .with_error("invalid_request")
                             .with_message(message),
                     ),
@@ -249,7 +249,7 @@ impl<R: RuntimeOps> Controller<R> {
                 self.runtime.set_presentation(Presentation::PrimaryWeb);
                 if let Some(id) = self.active_request_id.clone() {
                     self.runtime
-                        .post_frontend_event(NativeEventV2::new(id, "playing"));
+                        .post_frontend_event(NativeEventV1::new(id, "playing"));
                 }
             }
             ControllerEvent::PlaybackFinished => self.end_playback("finished"),
@@ -276,7 +276,7 @@ impl<R: RuntimeOps> Controller<R> {
         self.pending_proofs.insert(id.clone(), proof);
         self.state = AppState::Authenticating;
         self.runtime.post_frontend_event(
-            NativeEventV2::new(id, "auth-challenge").with_challenge(challenge),
+            NativeEventV1::new(id, "auth-challenge").with_challenge(challenge),
         );
         true
     }
@@ -301,7 +301,7 @@ impl<R: RuntimeOps> Controller<R> {
         self.active_request_id = None;
         self.state = AppState::Starting;
         self.runtime
-            .post_frontend_event(NativeEventV2::new(id, "stopped"));
+            .post_frontend_event(NativeEventV1::new(id, "stopped"));
         self.runtime.set_presentation(Presentation::Frontend);
         true
     }
@@ -318,13 +318,13 @@ impl<R: RuntimeOps> Controller<R> {
             && previous != id
         {
             self.runtime
-                .post_frontend_event(NativeEventV2::new(previous, "canceled"));
+                .post_frontend_event(NativeEventV1::new(previous, "canceled"));
         }
         self.state = AppState::Resolving;
         self.runtime
-            .post_frontend_event(NativeEventV2::new(id.clone(), "accepted"));
+            .post_frontend_event(NativeEventV1::new(id.clone(), "accepted"));
         self.runtime
-            .post_frontend_event(NativeEventV2::new(id, "resolving"));
+            .post_frontend_event(NativeEventV1::new(id, "resolving"));
         true
     }
 
@@ -335,7 +335,7 @@ impl<R: RuntimeOps> Controller<R> {
         }
         if let Err(err) = validate_foreseer_url(&url, allow_http) {
             self.runtime.post_frontend_event(
-                NativeEventV2::new(id, "error")
+                NativeEventV1::new(id, "error")
                     .with_error("invalid_request")
                     .with_message(err.message()),
             );
@@ -359,14 +359,14 @@ impl<R: RuntimeOps> Controller<R> {
                 if ok {
                     self.state = AppState::Starting;
                     self.runtime
-                        .post_frontend_event(NativeEventV2::new(id, "save-config-success"));
+                        .post_frontend_event(NativeEventV1::new(id, "save-config-success"));
                 } else {
                     self.emit_error(&id, AuthErrorCode::InvalidRequest);
                 }
             }
             Err(err) => {
                 self.runtime.post_frontend_event(
-                    NativeEventV2::new(id, "error")
+                    NativeEventV1::new(id, "error")
                         .with_error("invalid_request")
                         .with_message(err.message()),
                 );
@@ -380,14 +380,14 @@ impl<R: RuntimeOps> Controller<R> {
         self.runtime.set_presentation(Presentation::Frontend);
         if let Some(id) = self.active_request_id.take() {
             self.runtime
-                .post_frontend_event(NativeEventV2::new(id, kind));
+                .post_frontend_event(NativeEventV1::new(id, kind));
         }
         self.state = AppState::Ready;
     }
 
     fn emit_error(&mut self, id: &str, code: AuthErrorCode) {
         self.runtime
-            .post_frontend_event(NativeEventV2::new(id, "error").with_error(code.as_str()));
+            .post_frontend_event(NativeEventV1::new(id, "error").with_error(code.as_str()));
     }
 }
 
@@ -397,7 +397,7 @@ mod tests {
 
     #[derive(Default)]
     struct MockRuntime {
-        events: Vec<NativeEventV2>,
+        events: Vec<NativeEventV1>,
         presentations: Vec<Presentation>,
         navigations: Vec<String>,
         setup_navs: Vec<String>,
@@ -405,7 +405,7 @@ mod tests {
     }
 
     impl RuntimeOps for MockRuntime {
-        fn post_frontend_event(&mut self, event: NativeEventV2) {
+        fn post_frontend_event(&mut self, event: NativeEventV1) {
             self.events.push(event);
         }
         fn set_presentation(&mut self, presentation: Presentation) {
@@ -441,7 +441,7 @@ mod tests {
     #[test]
     fn auth_challenge_and_stale_redeem_ignored() {
         let mut ctl = Controller::new(MockRuntime::default(), false);
-        assert!(ctl.handle_command(NativeCommandV2::AuthChallenge { id: "a1".into() }));
+        assert!(ctl.handle_command(NativeCommandV1::AuthChallenge { id: "a1".into() }));
         assert_eq!(ctl.runtime.events[0].event_type, "auth-challenge");
         let epoch = ctl.auth_epoch();
         ctl.handle_event(ControllerEvent::AuthFailed {
@@ -475,11 +475,11 @@ mod tests {
     fn play_replace_and_terminal_restores_before_event() {
         let mut ctl = Controller::new(MockRuntime::default(), false);
         ctl.state = AppState::Ready;
-        ctl.handle_command(NativeCommandV2::PlayItem {
+        ctl.handle_command(NativeCommandV1::PlayItem {
             id: "play-a".into(),
             item_id: "item1".into(),
         });
-        ctl.handle_command(NativeCommandV2::PlayItem {
+        ctl.handle_command(NativeCommandV1::PlayItem {
             id: "play-b".into(),
             item_id: "item2".into(),
         });
@@ -503,7 +503,7 @@ mod tests {
     fn setup_save_clears_setup_authority() {
         let mut ctl = Controller::new(MockRuntime::default(), true);
         let setup_gen = ctl.setup_generation();
-        ctl.handle_command(NativeCommandV2::SetupSave {
+        ctl.handle_command(NativeCommandV1::SetupSave {
             id: "s1".into(),
             url: "https://foreseer.example".into(),
             allow_http: false,
@@ -527,16 +527,16 @@ mod tests {
     #[test]
     fn shutdown_cancels_without_deadlock() {
         let mut ctl = Controller::new(MockRuntime::default(), false);
-        ctl.handle_command(NativeCommandV2::AppQuit { id: "q".into() });
+        ctl.handle_command(NativeCommandV1::AppQuit { id: "q".into() });
         assert!(ctl.runtime.shutdown);
         assert_eq!(ctl.state(), AppState::ShuttingDown);
-        assert!(!ctl.handle_command(NativeCommandV2::AuthChallenge { id: "x".into() }));
+        assert!(!ctl.handle_command(NativeCommandV1::AuthChallenge { id: "x".into() }));
     }
 
     #[test]
     fn url_validation_errors_are_safe() {
         let mut ctl = Controller::new(MockRuntime::default(), true);
-        ctl.handle_command(NativeCommandV2::SetupSave {
+        ctl.handle_command(NativeCommandV1::SetupSave {
             id: "s1".into(),
             url: "https://user:pass@evil".into(),
             allow_http: false,

@@ -14,12 +14,11 @@ mod tests {
     #[test]
     fn setup_page_embeds_the_typed_protocol_listener() {
         let html = get_setup_html("");
-        assert!(html.contains("foreseerSetupProtocolV2"));
+        assert!(html.contains("foreseerSetupProtocolV1"));
         assert!(html.contains("detail.status"));
         assert!(html.contains("detail.message"));
         assert!(html.contains("foreseerNative"));
         assert!(!html.contains("{{SETUP_EVENT_JS}}"));
         assert!(!html.contains("jelliumHost"));
-        assert!(!html.contains("foreseerSetupProtocolV1"));
     }
 }

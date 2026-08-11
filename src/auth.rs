@@ -56,11 +56,11 @@ impl PendingAuthProofs {
 }
 
 pub fn new_auth_proof() -> AuthProof {
-    let verifier_bytes = random_bytes();
-    let challenge = hex_digest(&verifier_bytes);
+    let verifier = base64_url(&random_bytes());
+    let challenge = hex_digest(verifier.as_bytes());
     AuthProof {
         challenge,
-        verifier: base64_url(&verifier_bytes),
+        verifier,
         created_at: Instant::now(),
     }
 }
@@ -212,6 +212,14 @@ pub fn hex_digest(bytes: &[u8]) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn challenge_is_sha256_of_verifier_string() {
+        let proof = new_auth_proof();
+        assert_eq!(proof.challenge.len(), CHALLENGE_HEX_LENGTH);
+        assert_eq!(proof.verifier.len(), TICKET_LENGTH);
+        assert_eq!(proof.challenge, hex_digest(proof.verifier.as_bytes()));
+    }
 
     #[test]
     fn proofs_are_request_correlated_and_expire() {

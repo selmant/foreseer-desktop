@@ -1,4 +1,4 @@
-# Protocol v2 / host-extension migration
+# Protocol v1 / host-extension migration
 
 ## Pins and baselines
 

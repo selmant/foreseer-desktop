@@ -46,7 +46,7 @@ Use this when rebasing the maintained thin fork onto newer upstream Jellium.
    cargo fmt -- --check
    cargo test
    cargo clippy --all-targets -- -D warnings
-   node scripts/protocol-v2-harness.mjs
+   node scripts/protocol-v1-harness.mjs
    JELLIUM_DIR="$JELLIUM" ./scripts/boundary-audit.sh
    ```
 8. **Linux matrix (manual)** — Wayland and X11 smoke from `docs/migration-v2.md` Phase 7 checklist.

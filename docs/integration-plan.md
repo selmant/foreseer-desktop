@@ -1,4 +1,4 @@
-# Foreseer Desktop Integration Plan (protocol v2)
+# Foreseer Desktop Integration Plan (protocol v1)
 
 Status: host-extension migration Phases 0–5 implemented in worktrees; Phase 6
 gates/docs in progress; Phase 7 Linux acceptance pending.
@@ -29,9 +29,9 @@ stack. Product stability comes first; upstreaming is opportunistic.
 
 | Concern | Owner |
 | --- | --- |
-| Discovery, requests, library UI, browser fallback | SeerrSuggestArr |
-| `window.foreseerNative` detection + ticket issue (`protocolVersion: 2`) | SeerrSuggestArr |
-| Protocol v2, controller, injected assets, config, pins | foreseer-desktop |
+| Discovery, requests, library UI, ordinary browser play | SeerrSuggestArr |
+| `window.foreseerNative` detection + ticket issue (`protocolVersion: 1`) | SeerrSuggestArr |
+| Protocol v1, controller, injected assets, config, pins | foreseer-desktop |
 | CEF/mpv/compositor/window + generic `HostExtension` seam | Jellium thin fork |
 | Jellyfin playback negotiation / resume | Jellyfin Web via Jellium private layer |
 
@@ -48,16 +48,16 @@ flowchart LR
     F -. browser .-> L[Jellyfin link]
 ```
 
-## Protocol v2 (product boundary)
+## Protocol v1 (product boundary)
 
-Canonical fixture: [`protocol/protocol-v2.json`](../protocol/protocol-v2.json).
+Canonical fixture: [`protocol/protocol-v1.json`](../protocol/protocol-v1.json).
 
-- Global: frozen `window.foreseerNative` with `protocolVersion: 2`,
+- Global: frozen `window.foreseerNative` with `protocolVersion: 1`,
   `hostName: 'foreseer-desktop'`, and `send(command)`.
 - Events: `foreseer:native-event` with `{ protocolVersion, id, type, ... }`.
 - Commands are intent-level only (`auth.*`, `play.item`, `session.clear`,
   window/app/setup). No tokens, device IDs, or mpv commands on the page wire.
-- Leftover v1 `window.jelliumHost` hosts must fall back to browser playback.
+- Absent / unusable `foreseerNative` → ordinary browser playback (no v1 host).
 - Resume ticks stay Jellyfin-owned (`startPositionTicksInProtocol: false`).
 
 ## Opaque Jellium API (public surface)

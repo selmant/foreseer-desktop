@@ -1,7 +1,7 @@
 # Foreseer Desktop
 
 Native Foreseer shell backed by Jellium's opt-in `host-extension` runtime.
-Foreseer Desktop owns protocol v2, product policy, and injected assets; Jellium
+Foreseer Desktop owns protocol v1, product policy, and injected assets; Jellium
 supplies CEF/mpv and a generic extension seam.
 
 **0.2 support:** Linux (Wayland primary, X11 best-effort), **from source**.
@@ -77,19 +77,14 @@ cargo test
 cargo fmt --all -- --check
 cargo clippy --all-targets -- -D warnings
 
-# Deterministic protocol/integration trace (no network, CEF, mpv, or secrets):
+# Deterministic protocol/integration harness (no network, CEF, mpv, or secrets):
 node scripts/protocol-v1-harness.mjs
 ```
 
-Protocol v1 is frozen in `protocol/protocol-v1.json`. Jellium and Foreseer Web
-carry byte-equivalent fixtures so every repository can run its conformance
-tests from an independent checkout; the harness additionally rejects sibling
-fixture drift when all three checkouts are adjacent.
+Protocol v1 is canonical in `protocol/protocol-v1.json` (byte-equivalent copy in
+SeerrSuggestArr). There is no dual-protocol / v1 native host path.
 
-The scripted trace covers browser fallback, native discovery and challenge-
-bound authentication, Jellyfin-owned resume, request replacement/correlation,
-Back/return, renderer error recovery, the typed setup envelope, and safe-log
-redaction. It deliberately does not claim GPU/compositor coverage. Before a
+The harness covers fixture shape, command set, and package version. Before a
 release, run the Wayland and X11 visible-video/audio/focus matrix (including
 resize, fullscreen, mixed DPI, suspend/resume, and renderer recovery), then a
 50-cycle discovery → play → Back soak while checking for hidden audio, surface

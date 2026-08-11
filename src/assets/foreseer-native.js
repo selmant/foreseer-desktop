@@ -1,4 +1,4 @@
-// Foreseer Native protocol v2 bridge. Talks only through jmpNative.extensionPostMessage.
+// Foreseer Native protocol v1 bridge. Talks only through jmpNative.extensionPostMessage.
 (function installForeseerNative() {
   "use strict";
   const isSetupDocument = window.location.protocol === "data:";
@@ -19,7 +19,7 @@
   }
 
   const api = {
-    protocolVersion: 2,
+    protocolVersion: 1,
     hostName: "foreseer-desktop",
     hostVersion: "__HOST_VERSION__",
     capabilities: Object.freeze(
@@ -86,6 +86,9 @@
       }
     }
     if (!detail || typeof detail !== "object") return;
+    if (detail.type === "auth-challenge" || detail.type === "error") {
+      console.info("[ForeseerNative] host event", detail.type, detail.id);
+    }
     window.dispatchEvent(
       new CustomEvent("foreseer:native-event", {
         detail: Object.freeze(detail),

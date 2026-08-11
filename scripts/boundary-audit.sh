@@ -64,7 +64,6 @@ LEAK_PATTERNS=(
   'foreseer:native-event'
   'jellium:host-event'
   'protocol-v1\.json'
-  'protocol-v2\.json'
   'external-host\.js'
   'foreseer-native\.js'
   'jellyfin-session\.js'
