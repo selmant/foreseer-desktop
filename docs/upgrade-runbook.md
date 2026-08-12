@@ -4,7 +4,7 @@ Use this when rebasing the maintained thin fork onto newer upstream Jellium.
 
 ## Prerequisites
 
-- Clean worktree for the thin fork (`host-extension` branch).
+- Clean worktree for the thin fork (`main` branch).
 - Foreseer Desktop worktree that will consume the new pin.
 - Recorded upstream base in `jellium.upstream-base` and pin in `jellium.rev`.
 
@@ -13,12 +13,12 @@ Use this when rebasing the maintained thin fork onto newer upstream Jellium.
 1. **Fetch upstream**
    ```sh
    git -C "$JELLIUM" fetch upstream
-   git -C "$JELLIUM" checkout host-extension
+   git -C "$JELLIUM" checkout main
    ```
 2. **Rebase thin branch**
    ```sh
    git -C "$JELLIUM" rebase upstream/main
-   # resolve conflicts; keep host-extension generic; drop product leakage
+   # resolve conflicts; keep the host-extension generic; drop product leakage
    ```
 3. **Update recorded base** after a successful rebase onto the new tip:
    ```sh

@@ -4,21 +4,22 @@
 
 | Item | Value |
 |------|-------|
-| Protocol version | `2` |
+| Protocol version | `1` |
 | Old Foreseer baseline tag | `v0.2-baseline` (`5ce0e350319d6323c6d2ef47fad232fbe8842d36`) |
 | Old Jellium release pin (`jellium.rev` at baseline) | `1242b0e6c48fc272cf1852b392501f75b71cd6d9` (tag `external-frontend-v1-archive`) |
-| Old Jellium local hardened tip (dirty worktree left alone) | `8714375c676fd2ec771dc1471f954f409ef7b001` (tag `external-frontend-v1-local-hardened`) |
+| Old Jellium local hardened tip | preserved on `archive/local-runtime-fixes-20260812` |
 | New upstream base (`upstream/main` at worktree create) | `28f2cf16a1f1b819884dd6a72919ca55bdf9bd73` |
-| Thin fork branch / checkout | `host-extension` at `/home/selmant/Projects/jellium-desktop` |
-| Thin fork tip | `ce5d4b5ce4952634fc7cabb18f7cf0a00b5e21b4` |
-| Foreseer v2 branch / worktree | `feat/host-extension-v2` at `/home/selmant/Projects/foreseer-desktop-v2` |
+| Thin fork branch / checkout | `main` at `/home/selmant/Projects/jellium-desktop` |
+| Thin fork tip | `bce89c31b72d3c2d53bb0074e60d84a627a81cd4` |
+| Foreseer host-extension integration | merged into `main` for Desktop `v0.2.1` |
 | Seerr v2 branch | `feat/foreseer-native-v2` from `develop` |
 
 ## Worktree rules
 
-- Do not modify the dirty original Jellium checkout (`/home/selmant/Projects/jellium-desktop`) or its five uncommitted files.
-- Do not overwrite the dirty `Cargo.lock` in `/home/selmant/Projects/foreseer-desktop`.
-- All v2 / host-extension work happens in the worktrees and branches listed above.
+- Keep runtime experiments on their archive branch until they have passed the
+  normal Jellium and Foreseer release gates.
+- All host-extension maintenance happens in the canonical Desktop and Jellium
+  `main` branches.
 
 ## Status
 
