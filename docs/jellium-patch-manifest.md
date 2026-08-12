@@ -10,6 +10,9 @@ recorded here before `scripts/boundary-audit.sh` will pass.
 | `de3c381` | `de3c381519c92706937f862145ae483c52d12348` | runtime fix | Wayland full-buffer viewport during WSI resize |
 | `0a12974` | `0a1297427b07b4040f5cd58a14b7ad9a0b85750d` | runtime fix | mpv-proxy protocol error logging |
 | `ce5d4b5` | `ce5d4b5ce4952634fc7cabb18f7cf0a00b5e21b4` | hygiene | Drop unused `HostOptions::has_extension` |
+| `ecde360` | `ecde3604b65c302a27e219d3077d9f20d5a54dfe` | runtime fix | Atomically unmap hidden GPU CEF layers and serialize presentation changes |
+| `478ce60` | `478ce608b78672f9196e0eb44e0f51969d8ed56a` | runtime fix | Preserve CEF GPU compositing and align native dropdown behavior |
+| `bce89c3` | `bce89c31b72d3c2d53bb0074e60d84a627a81cd4` | runtime fix | Publish CEF copy/paste through the native Wayland clipboard |
 
 ## Ownership rules
 

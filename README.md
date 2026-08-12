@@ -14,7 +14,7 @@ See [LICENSE](LICENSE).
 
 - Adjacent [Jellium](https://github.com/selmant/jellium-desktop) checkout at the
   commit in [`jellium.rev`](jellium.rev) (default layout:
-  `../jellium-desktop`, local thin-fork worktree may be `../jellium-desktop-host-ext`)
+  `../jellium-desktop`)
 - Rust stable, system `libmpv`, and the usual Linux native build deps
   (Wayland/X11, clang for bindgen)
 
@@ -94,7 +94,7 @@ leaks, focus loss, and Jellyfin UI flashes.
 
 | Pin | Location |
 | --- | --- |
-| Version | `Cargo.toml` (`0.1.1`) |
+| Version | `Cargo.toml` (`0.2.1`) |
 | Jellium revision | `jellium.rev` |
 
 CI checks out that Jellium revision as a sibling of this repo and runs format,

@@ -12,9 +12,7 @@ resolve_jellium() {
     printf '%s\n' "$JELLIUM_DIR"
     return
   fi
-  for candidate in \
-    "$ROOT/../jellium-desktop" \
-    "$ROOT/../jellium-desktop-host-ext"; do
+  for candidate in "$ROOT/../jellium-desktop"; do
     if [[ -d "$candidate/.git" || -f "$candidate/.git" ]]; then
       printf '%s\n' "$candidate"
       return

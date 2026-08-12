@@ -150,10 +150,12 @@ impl ForeseerExtension {
                 if loaded.origin() != expected.origin() {
                     let request_id = pending.request_id.clone();
                     inner.pending_bootstrap = None;
-                    inner.controller.handle_event(ControllerEvent::BootstrapFailed {
-                        request_id,
-                        code: AuthErrorCode::InvalidBootstrapResponse,
-                    });
+                    inner
+                        .controller
+                        .handle_event(ControllerEvent::BootstrapFailed {
+                            request_id,
+                            code: AuthErrorCode::InvalidBootstrapResponse,
+                        });
                     tracing::warn!(
                         target: "ForeseerExtension",
                         "primary web origin mismatch for pending bootstrap"

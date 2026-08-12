@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.2.1 — 2026-08-12
+
+### Changed
+
+- Integrates the generic Jellium `host-extension` runtime into the Foreseer
+  Desktop product shell and pins its tested fork revision.
+- Moves Foreseer protocol, authentication, session, controller, and injected
+  web assets into the Desktop repository.
+- Adds CI boundary and protocol gates for the pinned Jellium runtime.
+
 ## 0.2.0 — 2026-08-09
 
 ### Added

@@ -9,7 +9,7 @@
 | Old Jellium release pin (`jellium.rev` at baseline) | `1242b0e6c48fc272cf1852b392501f75b71cd6d9` (tag `external-frontend-v1-archive`) |
 | Old Jellium local hardened tip (dirty worktree left alone) | `8714375c676fd2ec771dc1471f954f409ef7b001` (tag `external-frontend-v1-local-hardened`) |
 | New upstream base (`upstream/main` at worktree create) | `28f2cf16a1f1b819884dd6a72919ca55bdf9bd73` |
-| Thin fork branch / worktree | `host-extension` at `/home/selmant/Projects/jellium-desktop-host-ext` |
+| Thin fork branch / checkout | `host-extension` at `/home/selmant/Projects/jellium-desktop` |
 | Thin fork tip | `ce5d4b5ce4952634fc7cabb18f7cf0a00b5e21b4` |
 | Foreseer v2 branch / worktree | `feat/host-extension-v2` at `/home/selmant/Projects/foreseer-desktop-v2` |
 | Seerr v2 branch | `feat/foreseer-native-v2` from `develop` |
