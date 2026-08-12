@@ -15,6 +15,7 @@ recorded here before `scripts/boundary-audit.sh` will pass.
 | `bce89c3` | `bce89c31b72d3c2d53bb0074e60d84a627a81cd4` | runtime fix | Publish CEF copy/paste through the native Wayland clipboard |
 | `946e947` | `946e947bb6b1680740fcc7da4a4ffcbbb56ff7ec` | build fix | Gate the host-extension-only `Arc` import for strict default builds |
 | `bf59292` | `bf592922f061b64894c3058c5995c962b36c4b94` | documentation | Describe the maintained Foreseer runtime boundary |
+| `ff71888` | `ff71888cff843044956eda943b6434904a9b5f54` | runtime fix | Route host shutdown notifications through the manager to avoid extension callback deadlocks |
 
 ## Ownership rules
 

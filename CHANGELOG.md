@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.4 — 2026-08-12
+
+### Fixed
+
+- Prevent the in-app **Quit Foreseer** control from deadlocking the CEF UI
+  thread. Window-manager close requests now remain responsive during shutdown.
+
 ## 0.2.3 — 2026-08-12
 
 ### Fixed
