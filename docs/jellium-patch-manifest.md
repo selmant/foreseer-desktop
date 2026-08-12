@@ -17,6 +17,8 @@ recorded here before `scripts/boundary-audit.sh` will pass.
 | `bf59292` | `bf592922f061b64894c3058c5995c962b36c4b94` | documentation | Describe the maintained Foreseer runtime boundary |
 | `ff71888` | `ff71888cff843044956eda943b6434904a9b5f54` | runtime fix | Route host shutdown notifications through the manager to avoid extension callback deadlocks |
 | `db9ca5a` | `db9ca5af5bc82ab03b05fc24cdd0a4bbfa86bdcc` | runtime fix | Run host scripts even when a frontend has no built-in Jellium scripts |
+| `0579346` | `05793467b3bda161ffc43b43d66a70c334191ec7` | runtime fix | Prepare primary CEF before playback while keeping page chrome veiled |
+| `bc3122d` | `bc3122d267692e1c3ada32d1fa34bcdae9f7d1c1` | runtime fix | Prepare primary CEF before playback while keeping page chrome veiled |
 
 ## Ownership rules
 
