@@ -37,6 +37,9 @@ jobs:
           repository: selmant/jellium-desktop
           ref: ${{ steps.pin.outputs.rev }}
           path: jellium-desktop
+          # The boundary audit verifies ancestry from jellium.upstream-base,
+          # so the pinned thin fork must not be checked out shallowly.
+          fetch-depth: 0
           submodules: recursive
 
       - name: Install system dependencies
