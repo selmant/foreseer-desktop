@@ -29,6 +29,7 @@ impl RuntimeOps for HandleRuntime {
     fn set_presentation(&mut self, presentation: Presentation) {
         let mapped = match presentation {
             Presentation::Frontend => JfnPresentation::Frontend,
+            Presentation::PrimaryWebPreparing => JfnPresentation::PrimaryWebPreparing,
             Presentation::PrimaryWeb => JfnPresentation::PrimaryWeb,
         };
         let _ = self.handle.set_presentation(mapped);

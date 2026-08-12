@@ -23,6 +23,8 @@ pub enum AppState {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Presentation {
     Frontend,
+    /// Wake Jellyfin CEF for resolve/anim without revealing page chrome.
+    PrimaryWebPreparing,
     PrimaryWeb,
 }
 
@@ -321,6 +323,12 @@ impl<R: RuntimeOps> Controller<R> {
                 .post_frontend_event(NativeEventV1::new(previous, "canceled"));
         }
         self.state = AppState::Resolving;
+        // Unhide PrimaryWeb before Jellyfin createMediaElement waits on its
+        // zoom animationend; WasHidden CEF never fires that event. Keep the
+        // preparing veil so Jellyfin login/library chrome stays hidden until
+        // the poster mounts / playback starts.
+        self.runtime
+            .set_presentation(Presentation::PrimaryWebPreparing);
         self.runtime
             .post_frontend_event(NativeEventV1::new(id.clone(), "accepted"));
         self.runtime
@@ -479,6 +487,10 @@ mod tests {
             id: "play-a".into(),
             item_id: "item1".into(),
         });
+        assert_eq!(
+            ctl.runtime.presentations,
+            &[Presentation::PrimaryWebPreparing]
+        );
         ctl.handle_command(NativeCommandV1::PlayItem {
             id: "play-b".into(),
             item_id: "item2".into(),
@@ -489,8 +501,18 @@ mod tests {
                 .iter()
                 .any(|e| e.id == "play-a" && e.event_type == "canceled")
         );
+        assert_eq!(
+            ctl.runtime.presentations,
+            &[
+                Presentation::PrimaryWebPreparing,
+                Presentation::PrimaryWebPreparing
+            ]
+        );
         ctl.handle_event(ControllerEvent::PlaybackStarted);
-        assert_eq!(ctl.runtime.presentations[0], Presentation::PrimaryWeb);
+        assert_eq!(
+            ctl.runtime.presentations.last(),
+            Some(&Presentation::PrimaryWeb)
+        );
         ctl.runtime.events.clear();
         ctl.runtime.presentations.clear();
         ctl.handle_event(ControllerEvent::PlaybackFinished);

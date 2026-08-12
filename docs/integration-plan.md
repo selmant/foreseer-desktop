@@ -1,6 +1,6 @@
 # Foreseer Desktop Integration Plan (protocol v1)
 
-Status: host-extension integration is released as Foreseer Desktop `v0.2.5`.
+Status: host-extension integration is released as Foreseer Desktop `v0.2.6`.
 Automated boundary and protocol gates are enabled; Linux Wayland/X11 acceptance
 and the 50-cycle playback soak remain manual release gates.
 
@@ -69,7 +69,8 @@ Foreseer may import only the `host-extension` exports from `jfn-rust`:
 - `HostOptions::with_extension`
 - `HostExtension` / `HostExtensionDescriptor`
 - `ExtensionSource` / `FrontendSource`
-- `Presentation` / `RuntimeEvent` / `RuntimeHandle`
+- `Presentation` (`Frontend` / `PrimaryWebPreparing` / `PrimaryWeb`) /
+  `RuntimeEvent` / `RuntimeHandle`
 - `jfn_app_main_with`
 - related config errors / payload limit constants
 
