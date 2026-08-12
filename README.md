@@ -10,6 +10,26 @@ Windows/macOS and packaged installers are not released yet.
 This binary links GPL-2.0-only Jellium code and is therefore GPL-2.0-only.
 See [LICENSE](LICENSE).
 
+## How this fits the Foreseer product
+
+Foreseer Desktop is an optional client for the hosted
+[Foreseerr](https://github.com/selmant/foreseerr) application. It does not
+replace or bundle the web app, run a separate request server, or own the user's
+media-account configuration.
+
+| Component | Owns |
+| --- | --- |
+| [Foreseerr](https://github.com/selmant/foreseerr) | Hosted UI, sign-in, linked Jellyfin identity, discovery, requests, library browsing, and browser fallback. |
+| Foreseer Desktop | Native protocol v1, secure desktop bootstrap, desktop configuration, and the product release pin. |
+| [Jellium](https://github.com/selmant/jellium-desktop) | Generic CEF/mpv runtime, compositor/window lifecycle, and the `host-extension` API. |
+| Jellyfin Web | Media resolution, resume position, stream selection, and playback reporting. |
+
+The same Foreseerr page works in both environments. In a browser, play controls
+remain ordinary links. In this Desktop client, a compatible signed-in Jellyfin
+play action is passed to the native runtime; unsupported media and any native
+failure retain the browser fallback. User-facing setup and troubleshooting are
+documented in Foreseerr's [Native Desktop guide](https://github.com/selmant/foreseerr/blob/develop/docs/using-seerr/native-desktop.md).
+
 ## Requirements
 
 - Adjacent [Jellium](https://github.com/selmant/jellium-desktop) checkout at the
@@ -82,7 +102,8 @@ node scripts/protocol-v1-harness.mjs
 ```
 
 Protocol v1 is canonical in `protocol/protocol-v1.json` (byte-equivalent copy in
-SeerrSuggestArr). There is no dual-protocol / v1 native host path.
+Foreseerr). The Desktop client accepts only protocol v1; a browser or an
+incompatible native runtime falls back to ordinary web playback.
 
 The harness covers fixture shape, command set, and package version. Before a
 release, run the Wayland and X11 visible-video/audio/focus matrix (including

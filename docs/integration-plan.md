@@ -1,7 +1,8 @@
 # Foreseer Desktop Integration Plan (protocol v1)
 
-Status: host-extension migration Phases 0–5 implemented in worktrees; Phase 6
-gates/docs in progress; Phase 7 Linux acceptance pending.
+Status: host-extension integration is released as Foreseer Desktop `v0.2.2`.
+Automated boundary and protocol gates are enabled; Linux Wayland/X11 acceptance
+and the 50-cycle playback soak remain manual release gates.
 
 ## Goal
 
@@ -9,7 +10,7 @@ One Foreseer product in two environments:
 
 - **Browser:** full web app; play actions use ordinary Jellyfin links.
 - **Foreseer Desktop:** same hosted UI detects `window.foreseerNative` (protocol
-  v2), reuses the signed-in user's linked Jellyfin identity, and plays through
+  v1), reuses the signed-in user's linked Jellyfin identity, and plays through
   Jellium/mpv in one window. Terminal playback restores the Foreseer route
   without exposing private Jellyfin Web.
 
@@ -50,14 +51,15 @@ flowchart LR
 
 ## Protocol v1 (product boundary)
 
-Canonical fixture: [`protocol/protocol-v1.json`](../protocol/protocol-v1.json).
+Canonical fixture: [`protocol/protocol-v1.json`](../protocol/protocol-v1.json),
+with a byte-equivalent copy in the Foreseerr repository.
 
 - Global: frozen `window.foreseerNative` with `protocolVersion: 1`,
   `hostName: 'foreseer-desktop'`, and `send(command)`.
 - Events: `foreseer:native-event` with `{ protocolVersion, id, type, ... }`.
 - Commands are intent-level only (`auth.*`, `play.item`, `session.clear`,
   window/app/setup). No tokens, device IDs, or mpv commands on the page wire.
-- Absent / unusable `foreseerNative` → ordinary browser playback (no v1 host).
+- Absent / unusable `foreseerNative` → ordinary browser playback.
 - Resume ticks stay Jellyfin-owned (`startPositionTicksInProtocol: false`).
 
 ## Opaque Jellium API (public surface)
