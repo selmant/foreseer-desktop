@@ -99,7 +99,10 @@ jobs:
               next
             }
             {
-              gsub(/jellium-desktop([^-]|$)/, "foreseer-desktop\\1")
+              # POSIX awk replacement strings do not support capture-group
+              # backreferences. Every Jellium executable-name occurrence in
+              # this copied AppImage script must become the Foreseer name.
+              gsub(/jellium-desktop/, "foreseer-desktop")
               gsub(/\/src\//, "/workspace/jellium-desktop/")
               gsub(/net\.nullsum\.JelliumDesktop/, "com.selmantrabzon.Foreseer")
               gsub(/JelliumDesktop/, "ForeseerDesktop")

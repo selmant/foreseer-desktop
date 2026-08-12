@@ -115,7 +115,7 @@ leaks, focus loss, and Jellyfin UI flashes.
 
 | Pin | Location |
 | --- | --- |
-| Version | `Cargo.toml` (`0.2.2`) |
+| Version | `Cargo.toml` (`0.2.3`) |
 | Jellium revision | `jellium.rev` |
 
 CI checks out that Jellium revision as a sibling of this repo and runs format,

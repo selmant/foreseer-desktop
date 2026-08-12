@@ -1,11 +1,12 @@
 # Jellium thin-fork patch delta
 
 - upstream base: `28f2cf16a1f1b819884dd6a72919ca55bdf9bd73`
-- pin / HEAD: `946e947bb6b1680740fcc7da4a4ffcbbb56ff7ec`
+- pin / HEAD: `bf592922f061b64894c3058c5995c962b36c4b94`
 - checkout: `/home/selmant/Projects/jellium-desktop`
 
 ## Commits
 
+bf59292 docs: describe Foreseer runtime boundary
 946e947 fix: gate host extension Arc import
 bce89c3 fix(wayland): publish CEF copy/paste via native clipboard
 478ce60 fix(cef): align dropdowns and GPU compositing

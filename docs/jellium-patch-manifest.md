@@ -14,6 +14,7 @@ recorded here before `scripts/boundary-audit.sh` will pass.
 | `478ce60` | `478ce608b78672f9196e0eb44e0f51969d8ed56a` | runtime fix | Preserve CEF GPU compositing and align native dropdown behavior |
 | `bce89c3` | `bce89c31b72d3c2d53bb0074e60d84a627a81cd4` | runtime fix | Publish CEF copy/paste through the native Wayland clipboard |
 | `946e947` | `946e947bb6b1680740fcc7da4a4ffcbbb56ff7ec` | build fix | Gate the host-extension-only `Arc` import for strict default builds |
+| `bf59292` | `bf592922f061b64894c3058c5995c962b36c4b94` | documentation | Describe the maintained Foreseer runtime boundary |
 
 ## Ownership rules
 

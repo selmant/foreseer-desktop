@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.3 — 2026-08-12
+
+### Fixed
+
+- Correct Linux AppImage packaging name substitution so the staged Foreseer
+  executable is stripped and bundled under its real filename.
+
 ## 0.2.2 — 2026-08-12
 
 ### Fixed
