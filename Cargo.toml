@@ -5,7 +5,7 @@ edition = "2024"
 license = "GPL-2.0-only"
 publish = false
 description = "Native Foreseer shell using Jellium host-extension playback"
-repository = "https://github.com/selmant/foreseer-desktop"
+repository = "https://github.com/selmant/foreseerr-desktop"
 readme = "README.md"
 
 [lib]

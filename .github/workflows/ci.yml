@@ -61,7 +61,8 @@ jobs:
             libxcb-xfixes0-dev \
             libxcb-xkb-dev \
             ninja-build \
-            pkg-config
+            pkg-config \
+            ripgrep
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
