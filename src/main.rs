@@ -3,11 +3,16 @@ use directories::ProjectDirs;
 use foreseer_desktop::config::{AppConfig, validate_foreseer_url};
 use foreseer_desktop::extension::ForeseerExtension;
 use jfn_rust::{HostExtensionDescriptor, HostOptions};
+use std::ffi::OsStr;
+use std::process::Command;
 use std::sync::Arc;
 
 mod setup;
 
+const SETUP_RELAUNCH_ENV: &str = "FORESEER_SETUP_RELAUNCHED";
+
 fn main() {
+    relaunch_after_consuming_setup_flag();
     configure_product_profile();
     let cli_requested_setup = handle_cli_args();
 
@@ -50,7 +55,29 @@ fn main() {
     std::process::exit(jfn_rust::app::jfn_app_main_with(options));
 }
 
+/// `--setup` belongs to Foreseer, while the embedded Jellium runtime parses
+/// the remaining process arguments. Relaunch without the Foreseer-only flag
+/// so Jellium never rejects it as an unknown option.
+fn relaunch_after_consuming_setup_flag() {
+    if std::env::var_os(SETUP_RELAUNCH_ENV).is_some()
+        || std::env::args_os().nth(1).as_deref() != Some(OsStr::new("--setup"))
+    {
+        return;
+    }
+
+    let executable = std::env::current_exe().expect("current Foreseer executable path");
+    let status = Command::new(executable)
+        .args(std::env::args_os().skip(2))
+        .env(SETUP_RELAUNCH_ENV, "1")
+        .status()
+        .expect("relaunch Foreseer without --setup");
+    std::process::exit(status.code().unwrap_or(1));
+}
+
 fn handle_cli_args() -> bool {
+    if std::env::var_os(SETUP_RELAUNCH_ENV).is_some() {
+        return true;
+    }
     let args: Vec<String> = std::env::args().collect();
     if args.len() <= 1 {
         return false;

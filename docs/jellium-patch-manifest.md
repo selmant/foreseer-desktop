@@ -16,6 +16,7 @@ recorded here before `scripts/boundary-audit.sh` will pass.
 | `946e947` | `946e947bb6b1680740fcc7da4a4ffcbbb56ff7ec` | build fix | Gate the host-extension-only `Arc` import for strict default builds |
 | `bf59292` | `bf592922f061b64894c3058c5995c962b36c4b94` | documentation | Describe the maintained Foreseer runtime boundary |
 | `ff71888` | `ff71888cff843044956eda943b6434904a9b5f54` | runtime fix | Route host shutdown notifications through the manager to avoid extension callback deadlocks |
+| `db9ca5a` | `db9ca5af5bc82ab03b05fc24cdd0a4bbfa86bdcc` | runtime fix | Run host scripts even when a frontend has no built-in Jellium scripts |
 
 ## Ownership rules
 

@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.2.5 — 2026-08-12
+
+### Fixed
+
+- Restore `window.foreseerNative` on every native Foreseer frontend, including
+  the first-run setup document, so connection setup can use the native bridge.
+- Make the `--setup` command-line option open setup instead of being rejected
+  by the embedded Jellium runtime.
+
 ## 0.2.4 — 2026-08-12
 
 ### Fixed

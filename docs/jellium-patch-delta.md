@@ -1,11 +1,12 @@
 # Jellium thin-fork patch delta
 
 - upstream base: `28f2cf16a1f1b819884dd6a72919ca55bdf9bd73`
-- pin / HEAD: `ff71888cff843044956eda943b6434904a9b5f54`
+- pin / HEAD: `db9ca5af5bc82ab03b05fc24cdd0a4bbfa86bdcc`
 - checkout: `/home/selmant/Projects/jellium-desktop`
 
 ## Commits
 
+db9ca5a fix(host-extension): inject host scripts without built-ins
 ff71888 fix(host-extension): avoid shutdown callback deadlock
 bf59292 docs: describe Foreseer runtime boundary
 946e947 fix: gate host extension Arc import
@@ -24,7 +25,7 @@ c9e8deb feat: add generic host-extension seam for embedding binaries
  src/Cargo.lock                              |   3 +
  src/Cargo.toml                              |   1 +
  src/jfn_cef/Cargo.toml                      |   5 +
- src/jfn_cef/src/app.rs                      |   7 +
+ src/jfn_cef/src/app.rs                      |   9 +-
  src/jfn_cef/src/business_extension.rs       | 600 ++++++++++++++++++++++++++++
  src/jfn_cef/src/business_overlay.rs         |  21 +
  src/jfn_cef/src/business_web.rs             |   5 +
@@ -53,7 +54,7 @@ c9e8deb feat: add generic host-extension seam for embedding binaries
  src/wayland/src/mpv_proxy/app.rs            |  19 +
  src/wayland/src/mpv_proxy/mod.rs            |   2 +-
  src/web/select-menu.js                      |  81 ++--
- 33 files changed, 1557 insertions(+), 85 deletions(-)
+ 33 files changed, 1558 insertions(+), 86 deletions(-)
 ```
 
 ## File list
