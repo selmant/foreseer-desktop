@@ -1,11 +1,12 @@
 # Jellium thin-fork patch delta
 
 - upstream base: `28f2cf16a1f1b819884dd6a72919ca55bdf9bd73`
-- pin / HEAD: `bce89c31b72d3c2d53bb0074e60d84a627a81cd4`
+- pin / HEAD: `946e947bb6b1680740fcc7da4a4ffcbbb56ff7ec`
 - checkout: `/home/selmant/Projects/jellium-desktop`
 
 ## Commits
 
+946e947 fix: gate host extension Arc import
 bce89c3 fix(wayland): publish CEF copy/paste via native clipboard
 478ce60 fix(cef): align dropdowns and GPU compositing
 ecde360 fix: unmap hidden GPU CEF layers and serialize presentation

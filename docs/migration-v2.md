@@ -10,7 +10,7 @@
 | Old Jellium local hardened tip | preserved on `archive/local-runtime-fixes-20260812` |
 | New upstream base (`upstream/main` at worktree create) | `28f2cf16a1f1b819884dd6a72919ca55bdf9bd73` |
 | Thin fork branch / checkout | `main` at `/home/selmant/Projects/jellium-desktop` |
-| Thin fork tip | `bce89c31b72d3c2d53bb0074e60d84a627a81cd4` |
+| Thin fork tip | `946e947bb6b1680740fcc7da4a4ffcbbb56ff7ec` |
 | Foreseer host-extension integration | merged into `main` for Desktop `v0.2.1` |
 | Seerr v2 branch | `feat/foreseer-native-v2` from `develop` |
 

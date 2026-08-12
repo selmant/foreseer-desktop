@@ -13,6 +13,7 @@ recorded here before `scripts/boundary-audit.sh` will pass.
 | `ecde360` | `ecde3604b65c302a27e219d3077d9f20d5a54dfe` | runtime fix | Atomically unmap hidden GPU CEF layers and serialize presentation changes |
 | `478ce60` | `478ce608b78672f9196e0eb44e0f51969d8ed56a` | runtime fix | Preserve CEF GPU compositing and align native dropdown behavior |
 | `bce89c3` | `bce89c31b72d3c2d53bb0074e60d84a627a81cd4` | runtime fix | Publish CEF copy/paste through the native Wayland clipboard |
+| `946e947` | `946e947bb6b1680740fcc7da4a4ffcbbb56ff7ec` | build fix | Gate the host-extension-only `Arc` import for strict default builds |
 
 ## Ownership rules
 

@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.2 — 2026-08-12
+
+### Fixed
+
+- Pin the Jellium runtime fix that lets default builds pass strict unused-import
+  warnings while retaining the `host-extension` API.
+
 ## 0.2.1 — 2026-08-12
 
 ### Changed
