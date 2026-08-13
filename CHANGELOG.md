@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.8 — 2026-08-14
+
+### Fixed
+
+- After native playback, Back / close media remaps the Foreseer UI on Windows
+  instead of leaving a black DirectComposition surface over idle mpv.
+
 ## 0.2.7 — 2026-08-13
 
 ### Fixed

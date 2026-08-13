@@ -1,11 +1,12 @@
 # Jellium thin-fork patch delta
 
 - upstream base: `28f2cf16a1f1b819884dd6a72919ca55bdf9bd73`
-- pin / HEAD: `d04f4404569e39ade88135f61b3a2f4324317f6f`
+- pin / HEAD: `ffa6e228e1f66e615f2a03e48b18c05bb27d6140`
 - checkout: `/home/selmant/Projects/jellium-desktop`
 
 ## Commits
 
+ffa6e22 fix(windows): unmap hidden DComp visuals after playback
 d04f440 fix(host-extension): preserve playback OSD interaction
 bc3122d fix(host-extension): keep presentation terminology generic
 0579346 fix(host-extension): prepare primary web before playback
@@ -33,7 +34,7 @@ c9e8deb feat: add generic host-extension seam for embedding binaries
  src/jfn_cef/src/business_overlay.rs         |  21 +
  src/jfn_cef/src/business_web.rs             |   5 +
  src/jfn_cef/src/client.rs                   |   8 +
- src/jfn_cef/src/client/events.rs            |  42 ++
+ src/jfn_cef/src/client/events.rs            |  45 ++
  src/jfn_cef/src/client_impl/context_menu.rs |  18 +
  src/jfn_cef/src/client_impl/keyboard.rs     |  17 +-
  src/jfn_cef/src/client_impl/render.rs       |  10 +
@@ -58,7 +59,9 @@ c9e8deb feat: add generic host-extension seam for embedding binaries
  src/wayland/src/mpv_proxy/mod.rs            |   2 +-
  src/web/mpv-video-player.js                 |  19 +-
  src/web/select-menu.js                      |  81 ++--
- 34 files changed, 1673 insertions(+), 91 deletions(-)
+ src/windows/src/render/layer.rs             |  19 +-
+ src/windows/src/render/mod.rs               |  59 ++-
+ 36 files changed, 1737 insertions(+), 108 deletions(-)
 ```
 
 ## File list
@@ -97,3 +100,5 @@ c9e8deb feat: add generic host-extension seam for embedding binaries
 - src/wayland/src/mpv_proxy/mod.rs
 - src/web/mpv-video-player.js
 - src/web/select-menu.js
+- src/windows/src/render/layer.rs
+- src/windows/src/render/mod.rs

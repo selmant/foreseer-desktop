@@ -1115,7 +1115,7 @@ dependencies = [
 
 [[package]]
 name = "foreseer-desktop"
-version = "0.2.7"
+version = "0.2.8"
 dependencies = [
  "base64",
  "directories",

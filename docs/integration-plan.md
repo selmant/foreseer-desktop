@@ -1,6 +1,6 @@
 # Foreseer Desktop Integration Plan (protocol v1)
 
-Status: host-extension integration is released as Foreseer Desktop `v0.2.7`.
+Status: host-extension integration is released as Foreseer Desktop `v0.2.8`.
 Automated boundary and protocol gates are enabled; Linux Wayland/X11 acceptance
 and the 50-cycle playback soak remain manual release gates.
 
