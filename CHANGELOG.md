@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.2.7 — 2026-08-13
+
+### Fixed
+
+- Restore play/pause clicks and double-click fullscreen across the mpv picture
+  area after the primary-web preparation veil hid Jellyfin's OSD hit target.
+- Keep unselected subtitle checkmarks hidden in Jellyfin's playback action
+  sheet while the transparent player presentation is active.
+
 ## 0.2.5 — 2026-08-12
 
 ### Fixed
