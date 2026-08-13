@@ -21,6 +21,7 @@ recorded here before `scripts/boundary-audit.sh` will pass.
 | `bc3122d` | `bc3122d267692e1c3ada32d1fa34bcdae9f7d1c1` | runtime fix | Prepare primary CEF before playback while keeping page chrome veiled |
 | `d04f440` | `d04f4404569e39ade88135f61b3a2f4324317f6f` | runtime fix | Preserve Jellyfin OSD pointer targets and hidden action-sheet placeholders during veiled playback |
 | `ffa6e22` | `ffa6e228e1f66e615f2a03e48b18c05bb27d6140` | runtime fix | Unmap hidden Windows DComp CEF visuals so playback restore remaps the last host-frontend frame |
+| `bf647ab` | `bf647ab54b45737c38025f734980719700f16909` | runtime fix | Open Windows `<select>` dropdowns in-page like Linux instead of the DComp OSR popup |
 
 ## Ownership rules
 
