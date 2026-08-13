@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.9 — 2026-08-14
+
+### Fixed
+
+- Open native `<select>` dropdowns in-page on Windows, matching Linux, instead
+  of a DirectComposition OSR popup that closed immediately or appeared in the
+  wrong place.
+
 ## 0.2.8 — 2026-08-14
 
 ### Fixed
