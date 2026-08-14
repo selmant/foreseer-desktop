@@ -7,7 +7,7 @@ use std::net::IpAddr;
 use std::path::PathBuf;
 use url::Url;
 
-pub const DEFAULT_FRONTEND_URL: &str = "https://foreseer.selmantrabzon.com";
+pub const DEFAULT_FRONTEND_URL: &str = "https://foreseer.example.com";
 pub const MAX_FORESEER_URL_LEN: usize = 2048;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
