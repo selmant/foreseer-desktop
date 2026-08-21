@@ -22,6 +22,9 @@ recorded here before `scripts/boundary-audit.sh` will pass.
 | `d04f440` | `d04f4404569e39ade88135f61b3a2f4324317f6f` | runtime fix | Preserve Jellyfin OSD pointer targets and hidden action-sheet placeholders during veiled playback |
 | `ffa6e22` | `ffa6e228e1f66e615f2a03e48b18c05bb27d6140` | runtime fix | Unmap hidden Windows DComp CEF visuals so playback restore remaps the last host-frontend frame |
 | `bf647ab` | `bf647ab54b45737c38025f734980719700f16909` | runtime fix | Open Windows `<select>` dropdowns in-page like Linux instead of the DComp OSR popup |
+| `0382e02` | `0382e0217e91f93f9233a0a6e7e2798961b968a0` | runtime fix | Prevent Linux CEF mallinfo overflow abort |
+| `873d1e3` | `873d1e3221be19d5140d3e9ca53972d1099dc0a2` | runtime fix | Resume mpv presentation after compositor suspension |
+| `cb4e9d0` | `cb4e9d0a73358dda95555fa7f6110d83ef418110` | runtime fix | Stop in-page `<select>` clicks from dismissing page dialogs |
 
 ## Ownership rules
 
