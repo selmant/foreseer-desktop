@@ -9,6 +9,10 @@ DEST="${1:-$ROOT/resources}"
 VERSION_PIN="$(tr -d '[:space:]' < "$ROOT/foreseerr.version")"
 REVISION_PIN="$(tr -d '[:space:]' < "$ROOT/foreseerr.rev")"
 NODE_PIN="$(tr -d '[:space:]' < "$ROOT/node.rev")"
+NODE_RUNTIME_NAME="node"
+if [[ "${OS:-}" == "Windows_NT" || "${NODE_BIN##*/}" == "node.exe" ]]; then
+  NODE_RUNTIME_NAME="node.exe"
+fi
 
 if [[ ! -x "$NODE_BIN" ]]; then
   echo "stage-foreseerr: provide FORESEERR_NODE_BIN or install Node 22" >&2
@@ -39,7 +43,7 @@ fi
 pnpm --dir "$SOURCE" build
 rm -rf "$DEST/foreseerr" "$DEST/node"
 mkdir -p "$DEST/foreseerr" "$DEST/node"
-install -m 0755 "$NODE_BIN" "$DEST/node/node"
+install -m 0755 "$NODE_BIN" "$DEST/node/$NODE_RUNTIME_NAME"
 # `deploy --prod` gives the managed server an isolated, target-native production
 # dependency tree. Do not copy the development checkout's node_modules: it
 # contains Cypress, compiler tooling, package-manager stores, and host-native
@@ -68,7 +72,7 @@ if [[ -f "$NODE_LICENSE" ]]; then
 fi
 "$NODE_BIN" "$ROOT/scripts/generate-third-party-notices.mjs" \
   "$DEST/foreseerr" "$NODE_PIN" "$DEST/THIRD_PARTY_NOTICES.txt"
-test -x "$DEST/node/node"
+test -x "$DEST/node/$NODE_RUNTIME_NAME"
 test -f "$DEST/foreseerr/launcher.js"
 test -d "$DEST/foreseerr/dist"
 test -f "$DEST/THIRD_PARTY_NOTICES.txt"

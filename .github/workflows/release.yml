@@ -299,7 +299,7 @@ jobs:
           & $bash -lc 'cd "$(cygpath -u "$GITHUB_WORKSPACE")"; export FORESEERR_DIR="$(cygpath -u "$FORESEERR_DIR")"; ./foreseer-desktop/scripts/stage-foreseerr.sh ./bundle/resources'
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           if (-not (Test-Path bundle/resources/foreseerr/launcher.js)) { throw "Foreseerr runtime was not staged" }
-          if (-not (Test-Path bundle/resources/node/node)) { throw "Node runtime was not staged" }
+          if (-not (Test-Path bundle/resources/node/node.exe)) { throw "Node runtime was not staged" }
 
       - name: Read pinned Jellium revision
         id: jellium
