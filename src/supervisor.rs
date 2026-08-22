@@ -265,15 +265,35 @@ impl StandaloneSupervisor {
         let deadline = Instant::now() + READY_TIMEOUT;
         let mut diagnostics = Vec::new();
         loop {
-            if let Some(status) = child.try_wait().map_err(SupervisorError::Spawn)? {
-                return Err(SupervisorError::Startup(format!(
-                    "Bundled Foreseerr exited before readiness ({status}); {}",
-                    diagnostics.join("\n")
-                )));
+            match child.try_wait() {
+                Ok(Some(status)) => {
+                    cleanup_startup_child(
+                        &mut child,
+                        #[cfg(windows)]
+                        &job,
+                    );
+                    return Err(SupervisorError::Startup(format!(
+                        "Bundled Foreseerr exited before readiness ({status}); {}",
+                        diagnostics.join("\n")
+                    )));
+                }
+                Ok(None) => {}
+                Err(error) => {
+                    cleanup_startup_child(
+                        &mut child,
+                        #[cfg(windows)]
+                        &job,
+                    );
+                    return Err(SupervisorError::Spawn(error));
+                }
             }
             let remaining = deadline.saturating_duration_since(Instant::now());
             if remaining.is_zero() {
-                let _ = child.kill();
+                cleanup_startup_child(
+                    &mut child,
+                    #[cfg(windows)]
+                    &job,
+                );
                 return Err(SupervisorError::Startup(format!(
                     "Timed out waiting for bundled Foreseerr readiness; {}",
                     diagnostics.join("\n")
@@ -287,15 +307,34 @@ impl StandaloneSupervisor {
                 }
                 diagnostics.push(redact(&line));
                 if !is_stderr && line.starts_with(READY_PREFIX) {
-                    let ready: ReadyRecord = serde_json::from_str(&line[READY_PREFIX.len()..])
-                        .map_err(|_| {
-                            SupervisorError::InvalidReady(
+                    let ready: ReadyRecord = match serde_json::from_str(&line[READY_PREFIX.len()..])
+                    {
+                        Ok(ready) => ready,
+                        Err(_) => {
+                            cleanup_startup_child(
+                                &mut child,
+                                #[cfg(windows)]
+                                &job,
+                            );
+                            return Err(SupervisorError::InvalidReady(
                                 "Bundled Foreseerr emitted malformed readiness data".into(),
-                            )
-                        })?;
-                    validate_ready(&ready)?;
+                            ));
+                        }
+                    };
+                    if let Err(error) = validate_ready(&ready) {
+                        cleanup_startup_child(
+                            &mut child,
+                            #[cfg(windows)]
+                            &job,
+                        );
+                        return Err(error);
+                    }
                     if ready.foreseerr_version != bundled_foreseerr_version() {
-                        let _ = child.kill();
+                        cleanup_startup_child(
+                            &mut child,
+                            #[cfg(windows)]
+                            &job,
+                        );
                         return Err(SupervisorError::InvalidReady(format!(
                             "Bundled Foreseerr version mismatch (expected {}, got {})",
                             bundled_foreseerr_version(),
@@ -424,6 +463,38 @@ impl Drop for StandaloneSupervisor {
     fn drop(&mut self) {
         self.shutdown();
     }
+}
+
+/// Reap a child that failed before it could become a `StandaloneSupervisor`.
+/// On Unix the Node process is a process-group leader; signaling the group
+/// avoids leaving native-module helpers behind after malformed readiness or a
+/// timeout. Windows uses the kill-on-close job object for the same property.
+fn cleanup_startup_child(child: &mut Child, #[cfg(windows)] job: &WindowsJob) {
+    #[cfg(unix)]
+    if let Ok(pid) = i32::try_from(child.id()) {
+        unsafe { libc::kill(-pid, libc::SIGTERM) };
+    }
+    #[cfg(windows)]
+    job.terminate();
+    #[cfg(all(not(unix), not(windows)))]
+    let _ = child.kill();
+
+    let deadline = Instant::now() + Duration::from_secs(10);
+    while Instant::now() < deadline {
+        if child.try_wait().ok().flatten().is_some() {
+            return;
+        }
+        std::thread::sleep(Duration::from_millis(50));
+    }
+    #[cfg(unix)]
+    if let Ok(pid) = i32::try_from(child.id()) {
+        unsafe { libc::kill(-pid, libc::SIGKILL) };
+    }
+    #[cfg(windows)]
+    job.terminate();
+    #[cfg(all(not(unix), not(windows)))]
+    let _ = child.kill();
+    let _ = child.wait();
 }
 
 fn resource_root() -> Result<PathBuf, SupervisorError> {
