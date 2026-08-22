@@ -72,7 +72,7 @@ fn bundled_foreseerr_revision() -> &'static str {
 struct RuntimeVersion {
     foreseerr_version: String,
     #[serde(default)]
-    schema_version: u32,
+    schema_version: u64,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
@@ -83,7 +83,7 @@ pub struct ReadyRecord {
     pub origin: String,
     pub foreseerr_version: String,
     pub commit: String,
-    pub schema_version: u32,
+    pub schema_version: u64,
 }
 
 #[derive(Debug)]
@@ -249,6 +249,9 @@ impl StandaloneSupervisor {
         }
         command
             .env("FORESEERR_RUNTIME", "desktop")
+            // The staged bundle contains a production Next.js build and must
+            // initialize its SQLite schema before loading migrated settings.
+            .env("NODE_ENV", "production")
             .env("CONFIG_DIRECTORY", &config_dir)
             .env("CACHE_DIRECTORY", &cache_dir)
             .env("LOG_DIRECTORY", &log_dir)
@@ -380,6 +383,16 @@ impl StandaloneSupervisor {
                         upgrade_backup,
                         successful_status_recorded: false,
                     };
+                    // Keep draining stdout/stderr for the child's lifetime.
+                    // Dropping `rx` here used to make the reader threads exit and
+                    // close the pipes; the next Node write then raised EPIPE.
+                    // Next.js source-maps that as uncaughtException, logs it to
+                    // stderr, and livelocks the event loop so /login never
+                    // renders.
+                    drop(tx);
+                    std::thread::spawn(move || {
+                        while rx.recv().is_ok() {}
+                    });
                     return Ok(supervisor);
                 }
             }
@@ -431,14 +444,14 @@ impl StandaloneSupervisor {
         }
     }
     pub fn shutdown(&mut self) {
-        self.send_control(r#"{"type":"shutdown","deadlineMs":10000}"#);
+        self.send_control(r#"{"type":"shutdown","deadlineMs":2000}"#);
         #[cfg(unix)]
         if let Ok(pid) = i32::try_from(self.child.id()) {
             // The child is the leader of a dedicated group, so this also
             // reaches Node helpers spawned for native modules.
             unsafe { libc::kill(-pid, libc::SIGTERM) };
         }
-        let deadline = Instant::now() + Duration::from_secs(10);
+        let deadline = Instant::now() + Duration::from_secs(2);
         while Instant::now() < deadline {
             if self.child.try_wait().ok().flatten().is_some() {
                 return;
@@ -710,7 +723,7 @@ fn complete_upgrade_backup(backup: &Path, ready: &ReadyRecord) -> Result<(), Sup
 fn write_runtime_version(
     config_dir: &Path,
     version: &str,
-    schema_version: u32,
+    schema_version: u64,
 ) -> Result<(), SupervisorError> {
     let state = config_dir.join("state/runtime-version.json");
     let payload = serde_json::to_vec_pretty(&RuntimeVersion {

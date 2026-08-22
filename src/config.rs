@@ -87,11 +87,12 @@ pub fn validate_bootstrap_server_url(input: &str) -> Result<String, ForeseerUrlE
         return Err(ForeseerUrlError::Invalid);
     }
     let parsed = Url::parse(input).map_err(|_| ForeseerUrlError::Invalid)?;
-    if parsed.scheme() != "https" {
-        return Err(ForeseerUrlError::InsecureHttpNotAllowed);
-    }
-    if parsed.host_str().is_none() {
-        return Err(ForeseerUrlError::MissingHost);
+    let host = parsed.host_str().ok_or(ForeseerUrlError::MissingHost)?;
+    match parsed.scheme() {
+        "https" => {}
+        "http" if is_local_http_host(host) => {}
+        "http" => return Err(ForeseerUrlError::InsecureHttpNonLocalHost),
+        _ => return Err(ForeseerUrlError::UnsupportedScheme),
     }
     if !parsed.username().is_empty() || parsed.password().is_some() {
         return Err(ForeseerUrlError::CredentialsNotAllowed);
@@ -285,10 +286,12 @@ mod tests {
         assert!(validate_foreseer_url("http://127.0.0.1", true).is_ok());
     }
     #[test]
-    fn bootstrap_urls_are_always_https() {
+    fn bootstrap_http_is_only_for_private_hosts() {
         assert_eq!(
             validate_bootstrap_server_url("http://jellyfin.example").unwrap_err(),
-            ForeseerUrlError::InsecureHttpNotAllowed
+            ForeseerUrlError::InsecureHttpNonLocalHost
         );
+        assert!(validate_bootstrap_server_url("http://192.168.40.3:8096").is_ok());
+        assert!(validate_bootstrap_server_url("https://jellyfin.example").is_ok());
     }
 }

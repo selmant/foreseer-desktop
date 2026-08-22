@@ -301,12 +301,13 @@ impl HostExtension for ForeseerExtension {
             }
             RuntimeEvent::ShutdownBeginning => {
                 self.runtime_shutting_down.store(true, Ordering::Release);
-                if let Some(supervisor) = self.standalone_supervisor.clone() {
-                    std::thread::spawn(move || {
-                        if let Ok(mut supervisor) = supervisor.lock() {
-                            supervisor.shutdown();
-                        }
-                    });
+                // Shut down on this thread. A detached helper can be killed
+                // when the process exits, leaving a spinning Node child that
+                // still holds instance.lock and the SQLite WAL.
+                if let Some(supervisor) = &self.standalone_supervisor
+                    && let Ok(mut supervisor) = supervisor.lock()
+                {
+                    supervisor.shutdown();
                 }
             }
             _ => {}

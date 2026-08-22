@@ -60,6 +60,11 @@ find "$DEST/foreseerr" -mindepth 1 -maxdepth 1 \
 for item in launcher.js dist .next public seerr-api.yml; do
   [[ -e "$SOURCE/$item" ]] && cp -a "$SOURCE/$item" "$DEST/foreseerr/"
 done
+# Next.js' custom-server production startup still requires a pages/ or app/
+# directory to exist even when every route is already compiled in .next.
+# Keep an empty runtime marker so the staged desktop bundle can boot without
+# shipping the source route tree.
+mkdir -p "$DEST/foreseerr/pages"
 find "$DEST/foreseerr" -type d \( -name '.cache' -o -name 'cypress' -o -name 'test' -o -name 'tests' \) -prune -exec rm -rf {} +
 find "$DEST/foreseerr" -type f \( -name '*.map' -o -name '*.ts' -o -name '*.tsx' -o -name '*.tsbuildinfo' \) -delete
 rm -rf "$DEST/foreseerr/.next/cache" "$DEST/foreseerr/.next/turbopack" "$DEST/foreseerr/.next/dev"

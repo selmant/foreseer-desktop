@@ -129,10 +129,17 @@ mod tests {
     }
 
     #[test]
-    fn rejects_http_bootstrap_and_redacts() {
+    fn rejects_public_http_bootstrap_and_redacts() {
         let mut bad = sample();
         bad.server_url = "http://jellyfin.example/".into();
         assert!(bad.validate_shape().is_err());
         assert_eq!(redact_secrets(r#"{"accessToken":"secret"}"#), "[redacted]");
+    }
+
+    #[test]
+    fn accepts_private_http_bootstrap() {
+        let mut lan = sample();
+        lan.server_url = "http://192.168.40.3:8096".into();
+        assert!(lan.validate_shape().is_ok());
     }
 }
