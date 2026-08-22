@@ -23,6 +23,10 @@ use windows_sys::Win32::System::JobObjects::{
     JOBOBJECT_EXTENDED_LIMIT_INFORMATION, JobObjectExtendedLimitInformation,
     SetInformationJobObject, TerminateJobObject,
 };
+#[cfg(windows)]
+use windows_sys::Win32::System::Threading::{
+    GetExitCodeProcess, OpenProcess, PROCESS_QUERY_LIMITED_INFORMATION, STILL_ACTIVE,
+};
 
 use crate::config::AppConfig;
 
@@ -196,6 +200,7 @@ impl StandaloneSupervisor {
         ] {
             std::fs::create_dir_all(directory).map_err(SupervisorError::Spawn)?;
         }
+        ensure_no_active_instance_lock(&config_dir)?;
         let upgrade_backup = backup_before_upgrade(&config_dir)?;
         let mut command = Command::new(node);
         command
@@ -469,6 +474,51 @@ fn redact(line: &str) -> String {
     }
 }
 
+fn ensure_no_active_instance_lock(config_dir: &Path) -> Result<(), SupervisorError> {
+    let lock = config_dir.join("state/instance.lock");
+    if !lock.is_file() {
+        return Ok(());
+    }
+    let pid = fs::read_to_string(&lock)
+        .ok()
+        .and_then(|text| text.trim().parse::<u32>().ok());
+    if pid.is_some_and(process_is_alive) {
+        return Err(SupervisorError::Startup(
+            "Another Foreseer Desktop instance owns this data directory".into(),
+        ));
+    }
+    Ok(())
+}
+
+#[cfg(unix)]
+fn process_is_alive(pid: u32) -> bool {
+    let Ok(pid) = i32::try_from(pid) else {
+        return false;
+    };
+    let result = unsafe { libc::kill(pid, 0) };
+    result == 0 || std::io::Error::last_os_error().raw_os_error() == Some(libc::EPERM)
+}
+
+#[cfg(windows)]
+fn process_is_alive(pid: u32) -> bool {
+    let handle = unsafe { OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, 0, pid) };
+    if handle.is_null() {
+        // An inaccessible process must be treated as live: proceeding would
+        // risk modifying a database an existing desktop child owns.
+        return true;
+    }
+    let mut exit_code = 0;
+    let queried = unsafe { GetExitCodeProcess(handle, &mut exit_code) } != 0;
+    unsafe { CloseHandle(handle) };
+    queried && exit_code == STILL_ACTIVE
+}
+
+#[cfg(all(not(unix), not(windows)))]
+fn process_is_alive(_pid: u32) -> bool {
+    // Unsupported platforms fail closed whenever a parseable lock is found.
+    true
+}
+
 fn backup_before_upgrade(config_dir: &Path) -> Result<Option<PathBuf>, SupervisorError> {
     let state_file = config_dir.join("state/runtime-version.json");
     let previous = fs::read_to_string(&state_file)
@@ -626,5 +676,19 @@ mod tests {
         let state: RuntimeVersion =
             serde_json::from_str(r#"{"foreseerr_version":"0.6.0"}"#).unwrap();
         assert_eq!(state.schema_version, 0);
+    }
+
+    #[test]
+    fn active_instance_lock_prevents_upgrade_backup_work() {
+        let temporary = tempfile::tempdir().unwrap();
+        let state = temporary.path().join("state");
+        fs::create_dir_all(&state).unwrap();
+        fs::write(
+            state.join("instance.lock"),
+            format!("{}\n", std::process::id()),
+        )
+        .unwrap();
+
+        assert!(ensure_no_active_instance_lock(temporary.path()).is_err());
     }
 }
