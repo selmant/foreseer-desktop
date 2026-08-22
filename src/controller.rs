@@ -150,6 +150,9 @@ impl<R: RuntimeOps> Controller<R> {
                 self.emit_error(&id, AuthErrorCode::InvalidRequest);
                 true
             }
+            // The extension redeems the server-authorized ticket before it
+            // reaches this generic controller.
+            NativeCommandV1::BrowserCacheClear { .. } => true,
             NativeCommandV1::WindowMinimize { .. } => {
                 self.runtime.minimize();
                 true

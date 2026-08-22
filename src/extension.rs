@@ -365,6 +365,9 @@ impl ForeseerExtension {
                 allow_http,
             } => self.save_setup(id, url, allow_http),
             NativeCommandV1::SetupStandalone { id } => self.save_standalone_setup(id),
+            NativeCommandV1::BrowserCacheClear { id, ticket } => {
+                self.clear_browser_cache(id, ticket)
+            }
             NativeCommandV1::PlayItem { id, item_id } => {
                 tracing::info!(
                     target: "ForeseerExtension",
@@ -433,6 +436,39 @@ impl ForeseerExtension {
                 .runtime
                 .post_frontend_event(NativeEventV1::new(id, "save-config-success"));
             inner.controller.runtime.request_shutdown();
+        });
+        true
+    }
+
+    fn clear_browser_cache(&self, id: String, ticket: String) -> bool {
+        let Some((agent, endpoint, runtime)) = self
+            .with_inner(|inner| {
+                let parsed = url::Url::parse(&inner.frontend_url).ok()?;
+                let origin = parsed.origin().ascii_serialization();
+                Some((
+                    inner.agent.clone(),
+                    format!("{origin}/api/v1/desktop/browser-cache/redeem"),
+                    inner.runtime.clone(),
+                ))
+            })
+            .flatten()
+        else {
+            return true;
+        };
+        std::thread::spawn(move || {
+            let accepted = agent
+                .post(&endpoint)
+                .send_json(json!({ "ticket": ticket, "protocolVersion": 1 }))
+                .ok()
+                .is_some_and(|response| response.status().as_u16() == 204);
+            let event = if accepted && runtime.clear_http_cache() {
+                NativeEventV1::new(id, "browser-cache-cleared")
+            } else {
+                NativeEventV1::new(id, "error").with_error("browser_cache_clear_failed")
+            };
+            if let Ok(bytes) = serialize_event(&event) {
+                let _ = runtime.post_message(ExtensionSource::Frontend, &bytes);
+            }
         });
         true
     }

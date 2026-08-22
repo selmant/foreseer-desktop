@@ -67,6 +67,8 @@ pub enum NativeCommandV1 {
     },
     #[serde(rename = "setup.standalone")]
     SetupStandalone { id: String },
+    #[serde(rename = "browser-cache.clear")]
+    BrowserCacheClear { id: String, ticket: String },
     #[serde(rename = "window.minimize")]
     WindowMinimize { id: String },
     #[serde(rename = "window.toggle-maximize")]
@@ -87,6 +89,7 @@ impl NativeCommandV1 {
             | Self::SetupCheck { id, .. }
             | Self::SetupSave { id, .. }
             | Self::SetupStandalone { id }
+            | Self::BrowserCacheClear { id, .. }
             | Self::WindowMinimize { id }
             | Self::WindowToggleMaximize { id }
             | Self::WindowToggleFullscreen { id }
@@ -99,7 +102,11 @@ impl NativeCommandV1 {
             return Err("invalid_request_id");
         }
         match self {
-            Self::AuthComplete { ticket, .. } if !valid_ticket(ticket) => Err("invalid_ticket"),
+            Self::AuthComplete { ticket, .. } | Self::BrowserCacheClear { ticket, .. }
+                if !valid_ticket(ticket) =>
+            {
+                Err("invalid_ticket")
+            }
             Self::PlayItem { item_id, .. } if !valid_item_id(item_id) => Err("invalid_item_id"),
             Self::SetupCheck { url, .. } | Self::SetupSave { url, .. }
                 if url.is_empty() || url.len() > crate::config::MAX_FORESEER_URL_LEN =>
@@ -229,6 +236,17 @@ mod tests {
         assert!(matches!(
             parse_command(bad_item),
             Err(ParseError::Validation("invalid_item_id"))
+        ));
+    }
+
+    #[test]
+    fn parses_browser_cache_clear_ticket() {
+        let ticket = "a".repeat(TICKET_LENGTH);
+        let text =
+            format!(r#"{{"id":"cache-1","type":"browser-cache.clear","ticket":"{ticket}"}}"#);
+        assert!(matches!(
+            parse_command(text.as_bytes()),
+            Ok(NativeCommandV1::BrowserCacheClear { .. })
         ));
     }
 

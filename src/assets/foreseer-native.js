@@ -30,6 +30,7 @@
             "auth-bootstrap",
             "player-events",
             "session-reset",
+            "browser-cache-clear",
             "window-controls",
             "quit",
           ]
@@ -50,6 +51,7 @@
         case "app.quit":
           return post(command);
         case "auth.complete":
+        case "browser-cache.clear":
           return typeof command.ticket === "string" && TICKET.test(command.ticket)
             ? post(command)
             : false;
