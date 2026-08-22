@@ -254,6 +254,15 @@ mod tests {
     }
 
     #[test]
+    fn parses_runtime_retry_without_optional_fields() {
+        let command = br#"{"id":"recovery-1","type":"runtime.retry"}"#;
+        assert!(matches!(
+            parse_command(command),
+            Ok(NativeCommandV1::RuntimeRetry { .. })
+        ));
+    }
+
+    #[test]
     fn fixture_matches_package_version_and_limits() {
         let fixture = include_str!("../protocol/protocol-v1.json");
         let value: Value = serde_json::from_str(fixture).unwrap();
