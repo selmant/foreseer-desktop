@@ -14,7 +14,7 @@ use crate::config::{AppConfig, AppMode, validate_foreseer_url};
 use crate::controller::{AppState, Controller, ControllerEvent, Presentation, RuntimeOps};
 use crate::protocol::{NativeCommandV1, NativeEventV1, parse_command, serialize_event};
 use crate::session::SessionBootstrap;
-use crate::supervisor::StandaloneSupervisor;
+use crate::supervisor::{RuntimeHealthTracker, StandaloneSupervisor};
 
 struct HandleRuntime {
     handle: RuntimeHandle,
@@ -246,10 +246,11 @@ impl HostExtension for ForeseerExtension {
                 allow_insecure_http,
                 agent,
                 setup_agent,
-                runtime,
+                runtime: runtime.clone(),
                 pending_bootstrap: None,
             });
         }
+        self.monitor_standalone_runtime(runtime);
     }
 
     fn admit_message(&self, source: ExtensionSource, _origin: &str, payload: &[u8]) -> bool {
@@ -306,6 +307,37 @@ impl HostExtension for ForeseerExtension {
 }
 
 impl ForeseerExtension {
+    /// Poll only after CEF is live. Three failed status probes (or an exited
+    /// child) transition the active frontend to its local recovery view. This
+    /// keeps the extension's exact origin unchanged; it does not navigate to
+    /// a broad or attacker-controlled error URL.
+    fn monitor_standalone_runtime(&self, runtime: RuntimeHandle) {
+        let Some(supervisor) = self.standalone_supervisor.clone() else {
+            return;
+        };
+        std::thread::spawn(move || {
+            let mut tracker = RuntimeHealthTracker::default();
+            loop {
+                std::thread::sleep(Duration::from_secs(10));
+                let failed = supervisor
+                    .lock()
+                    .map(|mut child| tracker.observe(child.health()))
+                    .unwrap_or(true);
+                if !failed {
+                    continue;
+                }
+                let _ = runtime.set_presentation(JfnPresentation::Frontend);
+                let event = NativeEventV1::new("runtime", "runtime-failed")
+                    .with_error("standalone_runtime_failed")
+                    .with_message("The bundled Foreseerr server stopped responding.");
+                if let Ok(bytes) = serialize_event(&event) {
+                    let _ = runtime.post_message(ExtensionSource::Frontend, &bytes);
+                }
+                break;
+            }
+        });
+    }
+
     fn admit_frontend(&self, payload: &[u8]) -> bool {
         let Ok(command) = parse_command(payload) else {
             tracing::warn!(target: "ForeseerExtension", "rejected malformed frontend command");

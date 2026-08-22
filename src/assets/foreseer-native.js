@@ -18,6 +18,28 @@
     }
   }
 
+  function showRuntimeRecovery(message) {
+    if (isSetupDocument) return;
+    document.title = "Foreseer Recovery";
+    document.body.replaceChildren();
+    const root = document.createElement("main");
+    root.style.cssText = "max-width:42rem;margin:12vh auto;padding:2rem;font-family:system-ui,sans-serif;line-height:1.5";
+    const heading = document.createElement("h1");
+    heading.textContent = "Foreseer needs to restart";
+    const detail = document.createElement("p");
+    detail.textContent = message || "The bundled Foreseerr server stopped responding.";
+    const hint = document.createElement("p");
+    hint.textContent = "Close and reopen Foreseer to start the local server again. Your standalone data was not removed.";
+    const quit = document.createElement("button");
+    quit.type = "button";
+    quit.textContent = "Quit";
+    quit.addEventListener("click", function () {
+      api.send({ type: "app.quit", id: crypto.randomUUID() });
+    });
+    root.append(heading, detail, hint, quit);
+    document.body.append(root);
+  }
+
   const api = {
     protocolVersion: 1,
     hostName: "foreseer-desktop",
@@ -88,6 +110,9 @@
       }
     }
     if (!detail || typeof detail !== "object") return;
+    if (detail.type === "runtime-failed") {
+      showRuntimeRecovery(detail.message);
+    }
     if (detail.type === "auth-challenge" || detail.type === "error") {
       console.info("[ForeseerNative] host event", detail.type, detail.id);
     }
