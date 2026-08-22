@@ -49,7 +49,14 @@
     logs.addEventListener("click", function () {
       api.send({ type: "runtime.open-logs", id: crypto.randomUUID() });
     });
-    root.append(heading, detail, hint, retry, logs, quit);
+    const remote = document.createElement("button");
+    remote.type = "button";
+    remote.textContent = "Use Remote Mode";
+    remote.addEventListener("click", function () {
+      remote.disabled = true;
+      api.send({ type: "runtime.open-setup", id: crypto.randomUUID() });
+    });
+    root.append(heading, detail, hint, retry, logs, remote, quit);
     document.body.append(root);
   }
 
@@ -82,6 +89,7 @@
         case "session.clear":
         case "runtime.retry":
         case "runtime.open-logs":
+        case "runtime.open-setup":
         case "window.minimize":
         case "window.toggle-maximize":
         case "window.toggle-fullscreen":

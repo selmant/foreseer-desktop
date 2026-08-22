@@ -91,6 +91,12 @@
       ]
     },
     {
+      "type": "runtime.open-setup",
+      "fields": [
+        "id"
+      ]
+    },
+    {
       "type": "window.minimize",
       "fields": [
         "id"
@@ -132,6 +138,7 @@
     "runtime-failed"
     ,"runtime-recovered"
     ,"logs-opened"
+    ,"setup-opened"
   ],
   "terminalPlayEventTypes": [
     "stopped",

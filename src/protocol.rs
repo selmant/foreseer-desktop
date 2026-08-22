@@ -73,6 +73,8 @@ pub enum NativeCommandV1 {
     RuntimeRetry { id: String },
     #[serde(rename = "runtime.open-logs")]
     RuntimeOpenLogs { id: String },
+    #[serde(rename = "runtime.open-setup")]
+    RuntimeOpenSetup { id: String },
     #[serde(rename = "window.minimize")]
     WindowMinimize { id: String },
     #[serde(rename = "window.toggle-maximize")]
@@ -96,6 +98,7 @@ impl NativeCommandV1 {
             | Self::BrowserCacheClear { id, .. }
             | Self::RuntimeRetry { id }
             | Self::RuntimeOpenLogs { id }
+            | Self::RuntimeOpenSetup { id }
             | Self::WindowMinimize { id }
             | Self::WindowToggleMaximize { id }
             | Self::WindowToggleFullscreen { id }
@@ -271,6 +274,15 @@ mod tests {
         assert!(matches!(
             parse_command(command),
             Ok(NativeCommandV1::RuntimeOpenLogs { .. })
+        ));
+    }
+
+    #[test]
+    fn parses_runtime_open_setup_without_optional_fields() {
+        let command = br#"{"id":"recovery-1","type":"runtime.open-setup"}"#;
+        assert!(matches!(
+            parse_command(command),
+            Ok(NativeCommandV1::RuntimeOpenSetup { .. })
         ));
     }
 

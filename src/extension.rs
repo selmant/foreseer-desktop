@@ -445,6 +445,7 @@ impl ForeseerExtension {
             }
             NativeCommandV1::RuntimeRetry { id } => self.retry_standalone_runtime(id),
             NativeCommandV1::RuntimeOpenLogs { id } => self.open_standalone_logs(id),
+            NativeCommandV1::RuntimeOpenSetup { id } => self.open_remote_setup(id),
             NativeCommandV1::PlayItem { id, item_id } => {
                 tracing::info!(
                     target: "ForeseerExtension",
@@ -628,6 +629,30 @@ impl ForeseerExtension {
         true
     }
 
+    fn open_remote_setup(&self, id: String) -> bool {
+        match relaunch_setup() {
+            Ok(()) => {
+                self.with_inner(|inner| {
+                    inner
+                        .controller
+                        .runtime
+                        .post_frontend_event(NativeEventV1::new(id, "setup-opened"));
+                    inner.controller.runtime.request_shutdown();
+                });
+            }
+            Err(message) => {
+                self.with_inner(|inner| {
+                    inner.controller.runtime.post_frontend_event(
+                        NativeEventV1::new(id, "error")
+                            .with_error("setup_open_failed")
+                            .with_message(message),
+                    );
+                });
+            }
+        }
+        true
+    }
+
     fn start_setup_check(&self, id: String, url: String, allow_http: bool) -> bool {
         let Some((generation, agent)) = self
             .with_inner(|inner| {
@@ -791,6 +816,19 @@ fn relaunch_application() -> Result<(), String> {
         .spawn()
         .map(|_| ())
         .map_err(|error| format!("Could not restart Foreseer: {error}"))
+}
+
+fn relaunch_setup() -> Result<(), String> {
+    let executable = std::env::current_exe()
+        .map_err(|error| format!("Could not locate Foreseer executable: {error}"))?;
+    Command::new(executable)
+        .arg("--setup")
+        .env_remove("FORESEER_SETUP_RELAUNCHED")
+        .env_remove("FORESEER_URL")
+        .env_remove("FORESEER_ALLOW_INSECURE_HTTP")
+        .spawn()
+        .map(|_| ())
+        .map_err(|error| format!("Could not open Foreseer setup: {error}"))
 }
 
 fn open_directory(directory: &std::path::Path) -> Result<(), String> {
