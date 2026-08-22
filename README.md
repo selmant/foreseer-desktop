@@ -12,10 +12,9 @@ See [LICENSE](LICENSE).
 
 ## How this fits the Foreseer product
 
-Foreseer Desktop is an optional client for the hosted
-[Foreseerr](https://github.com/selmant/foreseerr) application. It does not
-replace or bundle the web app, run a separate request server, or own the user's
-media-account configuration.
+Foreseer Desktop defaults to standalone mode: it starts a bundled Foreseerr
+server on an ephemeral `127.0.0.1` port and owns its local data. Remote mode
+remains available for an existing Foreseerr deployment.
 
 | Component | Owns |
 | --- | --- |
@@ -63,15 +62,17 @@ Foreseer Desktop persists its configuration in a standard OS config directory:
 
 ```json
 {
-  "server_url": "https://foreseer.example.com",
-  "allow_insecure_http": false
+  "schema_version": 2,
+  "mode": "standalone",
+  "remote": { "server_url": "https://foreseer.example.com", "allow_insecure_http": false },
+  "standalone": { "cache_limit_bytes": 2147483648 }
 }
 ```
 
 ### CLI Commands & Environment Variables
 
 ```sh
-# Run with default or saved server URL:
+# Run the saved standalone or remote mode:
 cargo run
 
 # Launch the graphical server setup GUI:
@@ -80,8 +81,9 @@ cargo run -- --setup
 # View current configuration and file location:
 cargo run -- --show-config
 
-# Set a new default server URL:
-cargo run -- --set-url https://foreseer.example.com
+# Switch modes:
+cargo run -- --standalone
+cargo run -- --remote https://foreseer.example.com
 
 # Allow HTTP (non-HTTPS) server URL:
 cargo run -- --set-url http://192.168.1.50:5055 --allow-http

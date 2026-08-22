@@ -10,10 +10,11 @@ use jfn_rust::{
 use serde_json::json;
 
 use crate::auth::{AuthErrorCode, redeem_ticket, redemption_url};
-use crate::config::{AppConfig, validate_foreseer_url};
+use crate::config::{AppConfig, AppMode, validate_foreseer_url};
 use crate::controller::{AppState, Controller, ControllerEvent, Presentation, RuntimeOps};
 use crate::protocol::{NativeCommandV1, NativeEventV1, parse_command, serialize_event};
 use crate::session::SessionBootstrap;
+use crate::supervisor::StandaloneSupervisor;
 
 struct HandleRuntime {
     handle: RuntimeHandle,
@@ -83,6 +84,7 @@ pub struct ForeseerExtension {
     in_setup: bool,
     state: Mutex<Option<Inner>>,
     self_weak: Mutex<Option<Weak<ForeseerExtension>>>,
+    standalone_supervisor: Option<Arc<Mutex<StandaloneSupervisor>>>,
 }
 
 impl ForeseerExtension {
@@ -92,6 +94,22 @@ impl ForeseerExtension {
         allow_insecure_http: bool,
         in_setup: bool,
     ) -> Arc<Self> {
+        Self::new_with_supervisor(
+            descriptor,
+            frontend_url,
+            allow_insecure_http,
+            in_setup,
+            None,
+        )
+    }
+
+    pub fn new_with_supervisor(
+        descriptor: HostExtensionDescriptor,
+        frontend_url: String,
+        allow_insecure_http: bool,
+        in_setup: bool,
+        standalone_supervisor: Option<Arc<Mutex<StandaloneSupervisor>>>,
+    ) -> Arc<Self> {
         let extension = Arc::new(Self {
             descriptor,
             frontend_url: Mutex::new(frontend_url),
@@ -99,6 +117,7 @@ impl ForeseerExtension {
             in_setup,
             state: Mutex::new(None),
             self_weak: Mutex::new(None),
+            standalone_supervisor,
         });
         if let Ok(mut slot) = extension.self_weak.lock() {
             *slot = Some(Arc::downgrade(&extension));
@@ -243,6 +262,34 @@ impl HostExtension for ForeseerExtension {
     fn on_runtime_event(&self, event: RuntimeEvent) {
         if let RuntimeEvent::PrimaryWebLoaded { url } = &event {
             self.deliver_pending_bootstrap(url);
+        }
+        match event {
+            RuntimeEvent::PlaybackStarted => {
+                if let Some(supervisor) = &self.standalone_supervisor
+                    && let Ok(mut supervisor) = supervisor.lock()
+                {
+                    supervisor.set_playback_active(true);
+                }
+            }
+            RuntimeEvent::PlaybackFinished
+            | RuntimeEvent::PlaybackCanceled
+            | RuntimeEvent::PlaybackError => {
+                if let Some(supervisor) = &self.standalone_supervisor
+                    && let Ok(mut supervisor) = supervisor.lock()
+                {
+                    supervisor.set_playback_active(false);
+                }
+            }
+            RuntimeEvent::ShutdownBeginning => {
+                if let Some(supervisor) = self.standalone_supervisor.clone() {
+                    std::thread::spawn(move || {
+                        if let Ok(mut supervisor) = supervisor.lock() {
+                            supervisor.shutdown();
+                        }
+                    });
+                }
+            }
+            _ => {}
         }
         let mapped = match event {
             RuntimeEvent::PlaybackStarted => Some(ControllerEvent::PlaybackStarted),
@@ -441,8 +488,9 @@ impl ForeseerExtension {
             }
         };
         let mut config = AppConfig::load();
-        config.server_url = normalized.clone();
-        config.allow_insecure_http = allow_http;
+        config.mode = AppMode::Remote;
+        config.remote.server_url = normalized.clone();
+        config.remote.allow_insecure_http = allow_http;
         let _ = config.save();
         if let Ok(mut url_guard) = self.frontend_url.lock() {
             *url_guard = normalized.clone();

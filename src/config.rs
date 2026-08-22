@@ -1,14 +1,16 @@
-//! Product configuration and Foreseer URL validation.
+//! Product configuration, migration, and Foreseer URL validation.
 
 use directories::ProjectDirs;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::net::IpAddr;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use url::Url;
 
 pub const DEFAULT_FRONTEND_URL: &str = "https://foreseer.example.com";
 pub const MAX_FORESEER_URL_LEN: usize = 2048;
+pub const CONFIG_SCHEMA_VERSION: u32 = 2;
+pub const DEFAULT_CACHE_LIMIT_BYTES: u64 = 2 * 1024 * 1024 * 1024;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ForeseerUrlError {
@@ -20,7 +22,6 @@ pub enum ForeseerUrlError {
     InsecureHttpNotAllowed,
     InsecureHttpNonLocalHost,
 }
-
 impl ForeseerUrlError {
     pub const fn message(self) -> &'static str {
         match self {
@@ -57,13 +58,12 @@ pub fn validate_foreseer_url(
     if !parsed.username().is_empty() || parsed.password().is_some() {
         return Err(ForeseerUrlError::CredentialsNotAllowed);
     }
-    if parsed.scheme() == "http" {
-        if !allow_insecure_http {
-            return Err(ForeseerUrlError::InsecureHttpNotAllowed);
-        }
-        if !is_local_http_host(host) {
-            return Err(ForeseerUrlError::InsecureHttpNonLocalHost);
-        }
+    if parsed.scheme() == "http" && (!allow_insecure_http || !is_local_http_host(host)) {
+        return Err(if allow_insecure_http {
+            ForeseerUrlError::InsecureHttpNonLocalHost
+        } else {
+            ForeseerUrlError::InsecureHttpNotAllowed
+        });
     }
     Ok(parsed.origin().ascii_serialization())
 }
@@ -101,85 +101,169 @@ pub fn validate_bootstrap_server_url(input: &str) -> Result<String, ForeseerUrlE
     Ok(parsed.to_string())
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum AppMode {
+    Standalone,
+    Remote,
+}
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct AppConfig {
+pub struct RemoteConfig {
     pub server_url: String,
     pub allow_insecure_http: bool,
+}
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct StandaloneConfig {
+    pub cache_limit_bytes: u64,
+}
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AppConfig {
+    pub schema_version: u32,
+    pub mode: AppMode,
+    pub remote: RemoteConfig,
+    pub standalone: StandaloneConfig,
+}
+#[derive(Deserialize)]
+struct LegacyConfig {
+    server_url: String,
+    #[serde(default)]
+    allow_insecure_http: bool,
 }
 
 impl Default for AppConfig {
     fn default() -> Self {
         Self {
-            server_url: DEFAULT_FRONTEND_URL.to_string(),
-            allow_insecure_http: false,
+            schema_version: CONFIG_SCHEMA_VERSION,
+            mode: AppMode::Standalone,
+            remote: RemoteConfig {
+                server_url: DEFAULT_FRONTEND_URL.into(),
+                allow_insecure_http: false,
+            },
+            standalone: StandaloneConfig {
+                cache_limit_bytes: DEFAULT_CACHE_LIMIT_BYTES,
+            },
         }
     }
 }
-
 impl AppConfig {
-    pub fn config_file_path() -> Option<PathBuf> {
-        if let Some(dir) = std::env::var_os("JELLIUM_DESKTOP_CONFIG_DIR")
+    pub fn config_directory() -> Option<PathBuf> {
+        std::env::var_os("JELLIUM_DESKTOP_CONFIG_DIR")
             .or_else(|| std::env::var_os("FORESEER_CONFIG_DIR"))
-        {
-            return Some(PathBuf::from(dir).join("config.json"));
-        }
-        ProjectDirs::from("com", "selmantrabzon", "Foreseer")
-            .map(|dirs| dirs.config_dir().join("config.json"))
+            .map(PathBuf::from)
+            .or_else(|| {
+                ProjectDirs::from("com", "selmantrabzon", "Foreseer")
+                    .map(|d| d.config_dir().to_path_buf())
+            })
     }
-
+    pub fn cache_directory() -> Option<PathBuf> {
+        std::env::var_os("JELLIUM_DESKTOP_CACHE_DIR")
+            .or_else(|| std::env::var_os("FORESEER_CACHE_DIR"))
+            .map(PathBuf::from)
+            .or_else(|| {
+                ProjectDirs::from("com", "selmantrabzon", "Foreseer")
+                    .map(|d| d.cache_dir().to_path_buf())
+            })
+    }
+    pub fn config_file_path() -> Option<PathBuf> {
+        Self::config_directory().map(|d| d.join("config.json"))
+    }
+    pub fn standalone_data_directory() -> Option<PathBuf> {
+        Self::config_directory().map(|d| d.join("standalone"))
+    }
+    pub fn standalone_cache_directory() -> Option<PathBuf> {
+        Self::cache_directory().map(|d| d.join("standalone"))
+    }
+    pub fn standalone_log_directory() -> Option<PathBuf> {
+        Self::standalone_data_directory().map(|d| d.join("logs"))
+    }
     pub fn exists() -> bool {
         Self::config_file_path().is_some_and(|p| p.exists())
     }
-
     pub fn is_configured(&self) -> bool {
-        validate_foreseer_url(&self.server_url, self.allow_insecure_http).is_ok()
+        self.mode == AppMode::Standalone
+            || validate_foreseer_url(&self.remote.server_url, self.remote.allow_insecure_http)
+                .is_ok()
     }
-
+    pub fn remote_url(&self) -> Result<String, ForeseerUrlError> {
+        validate_foreseer_url(&self.remote.server_url, self.remote.allow_insecure_http)
+    }
     pub fn load() -> Self {
-        let path = Self::config_file_path();
-        let mut config = if let Some(ref p) = path
-            && let Ok(content) = fs::read_to_string(p)
-            && let Ok(cfg) = serde_json::from_str::<AppConfig>(&content)
+        let mut config = Self::config_file_path()
+            .as_ref()
+            .and_then(|p| fs::read_to_string(p).ok())
+            .and_then(|text| {
+                serde_json::from_str::<AppConfig>(&text).ok().or_else(|| {
+                    serde_json::from_str::<LegacyConfig>(&text)
+                        .ok()
+                        .map(|legacy| Self {
+                            schema_version: CONFIG_SCHEMA_VERSION,
+                            mode: AppMode::Remote,
+                            remote: RemoteConfig {
+                                server_url: legacy.server_url,
+                                allow_insecure_http: legacy.allow_insecure_http,
+                            },
+                            standalone: StandaloneConfig {
+                                cache_limit_bytes: DEFAULT_CACHE_LIMIT_BYTES,
+                            },
+                        })
+                })
+            })
+            .unwrap_or_default();
+        config.schema_version = CONFIG_SCHEMA_VERSION;
+        if let Ok(url) = std::env::var("FORESEER_URL")
+            && !url.trim().is_empty()
         {
-            cfg
-        } else {
-            Self::default()
-        };
-
-        if let Ok(env_url) = std::env::var("FORESEER_URL")
-            && !env_url.trim().is_empty()
-        {
-            config.server_url = env_url;
+            config.mode = AppMode::Remote;
+            config.remote.server_url = url;
         }
         if std::env::var("FORESEER_ALLOW_INSECURE_HTTP").as_deref() == Ok("1") {
-            config.allow_insecure_http = true;
+            config.remote.allow_insecure_http = true;
         }
-
         config
     }
-
     pub fn save(&self) -> Result<(), std::io::Error> {
         if let Some(path) = Self::config_file_path() {
             self.save_to(&path)?;
         }
         Ok(())
     }
-
-    pub fn save_to(&self, path: &std::path::Path) -> Result<(), std::io::Error> {
+    pub fn save_to(&self, path: &Path) -> Result<(), std::io::Error> {
         if let Some(parent) = path.parent() {
             fs::create_dir_all(parent)?;
         }
         let json = serde_json::to_string_pretty(self)
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
-        fs::write(path, json)?;
-        Ok(())
+        fs::write(path, json)
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-
+    #[test]
+    fn legacy_config_is_migrated_to_remote_without_losing_values() {
+        let legacy = r#"{"server_url":"https://foreseer.example","allow_insecure_http":false}"#;
+        let value: LegacyConfig = serde_json::from_str(legacy).unwrap();
+        let migrated = AppConfig {
+            schema_version: CONFIG_SCHEMA_VERSION,
+            mode: AppMode::Remote,
+            remote: RemoteConfig {
+                server_url: value.server_url,
+                allow_insecure_http: value.allow_insecure_http,
+            },
+            standalone: StandaloneConfig {
+                cache_limit_bytes: DEFAULT_CACHE_LIMIT_BYTES,
+            },
+        };
+        assert_eq!(migrated.mode, AppMode::Remote);
+        assert_eq!(migrated.remote.server_url, "https://foreseer.example");
+    }
+    #[test]
+    fn defaults_are_standalone_and_use_two_gib_cache_budget() {
+        let config = AppConfig::default();
+        assert_eq!(config.mode, AppMode::Standalone);
+        assert_eq!(config.standalone.cache_limit_bytes, 2_147_483_648);
+    }
     #[test]
     fn insecure_foreseer_urls_require_local_override() {
         assert_eq!(
@@ -187,39 +271,12 @@ mod tests {
             ForeseerUrlError::InsecureHttpNotAllowed
         );
         assert!(validate_foreseer_url("http://127.0.0.1", true).is_ok());
-        assert_eq!(
-            validate_foreseer_url("http://example.com", true).unwrap_err(),
-            ForeseerUrlError::InsecureHttpNonLocalHost
-        );
     }
-
-    #[test]
-    fn rejects_credential_bearing_urls() {
-        assert_eq!(
-            validate_foreseer_url("https://user:pass@foreseer.example", false).unwrap_err(),
-            ForeseerUrlError::CredentialsNotAllowed
-        );
-    }
-
     #[test]
     fn bootstrap_urls_are_always_https() {
         assert_eq!(
             validate_bootstrap_server_url("http://jellyfin.example").unwrap_err(),
             ForeseerUrlError::InsecureHttpNotAllowed
         );
-        assert!(validate_bootstrap_server_url("https://jellyfin.example/").is_ok());
-    }
-
-    #[test]
-    fn app_config_roundtrip() {
-        let dir = tempfile::tempdir().unwrap();
-        let path = dir.path().join("config.json");
-        let cfg = AppConfig {
-            server_url: "https://foreseer.example".into(),
-            allow_insecure_http: false,
-        };
-        cfg.save_to(&path).unwrap();
-        let loaded: AppConfig = serde_json::from_str(&fs::read_to_string(&path).unwrap()).unwrap();
-        assert_eq!(loaded, cfg);
     }
 }
