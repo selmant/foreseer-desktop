@@ -365,7 +365,6 @@ impl ForeseerExtension {
                 allow_http,
             } => self.save_setup(id, url, allow_http),
             NativeCommandV1::SetupStandalone { id } => self.save_standalone_setup(id),
-            NativeCommandV1::CacheClearBrowser { id } => self.clear_browser_cache(id),
             NativeCommandV1::PlayItem { id, item_id } => {
                 tracing::info!(
                     target: "ForeseerExtension",
@@ -434,20 +433,6 @@ impl ForeseerExtension {
                 .runtime
                 .post_frontend_event(NativeEventV1::new(id, "save-config-success"));
             inner.controller.runtime.request_shutdown();
-        });
-        true
-    }
-
-    fn clear_browser_cache(&self, id: String) -> bool {
-        self.with_inner(|inner| {
-            let event = if inner.runtime.clear_http_cache() {
-                NativeEventV1::new(id, "cache-clear-success")
-            } else {
-                NativeEventV1::new(id, "error")
-                    .with_error("cache_clear_unavailable")
-                    .with_message("Browser cache is not available yet")
-            };
-            inner.controller.runtime.post_frontend_event(event);
         });
         true
     }

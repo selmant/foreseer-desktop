@@ -67,8 +67,6 @@ pub enum NativeCommandV1 {
     },
     #[serde(rename = "setup.standalone")]
     SetupStandalone { id: String },
-    #[serde(rename = "cache.clear-browser")]
-    CacheClearBrowser { id: String },
     #[serde(rename = "window.minimize")]
     WindowMinimize { id: String },
     #[serde(rename = "window.toggle-maximize")]
@@ -89,7 +87,6 @@ impl NativeCommandV1 {
             | Self::SetupCheck { id, .. }
             | Self::SetupSave { id, .. }
             | Self::SetupStandalone { id }
-            | Self::CacheClearBrowser { id }
             | Self::WindowMinimize { id }
             | Self::WindowToggleMaximize { id }
             | Self::WindowToggleFullscreen { id }
