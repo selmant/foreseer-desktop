@@ -34,6 +34,30 @@ pub const READY_PREFIX: &str = "FORESEERR_DESKTOP_READY ";
 pub const READY_PROTOCOL_VERSION: u32 = 1;
 const READY_TIMEOUT: Duration = Duration::from_secs(90);
 const BUNDLED_FORESEERR_VERSION_FILE: &str = include_str!("../foreseerr.version");
+const CLEARED_CHILD_ENV: &[&str] = &[
+    "PORT",
+    "HOST",
+    "CONFIG_DIRECTORY",
+    "CACHE_DIRECTORY",
+    "LOG_DIRECTORY",
+    "NODE_OPTIONS",
+    "NODE_PATH",
+    "DB_TYPE",
+    "DB_HOST",
+    "DB_PORT",
+    "DB_USER",
+    "DB_PASS",
+    "DB_NAME",
+    "DB_SOCKET_PATH",
+    "DB_USE_SSL",
+    "DB_SSL_REJECT_UNAUTHORIZED",
+    "DB_SSL_CA",
+    "DB_SSL_CA_FILE",
+    "DB_SSL_KEY",
+    "DB_SSL_KEY_FILE",
+    "DB_SSL_CERT",
+    "DB_SSL_CERT_FILE",
+];
 
 fn bundled_foreseerr_version() -> &'static str {
     BUNDLED_FORESEERR_VERSION_FILE.trim()
@@ -211,15 +235,7 @@ impl StandaloneSupervisor {
             .stderr(Stdio::piped());
         #[cfg(unix)]
         command.process_group(0);
-        for key in [
-            "PORT",
-            "HOST",
-            "CONFIG_DIRECTORY",
-            "CACHE_DIRECTORY",
-            "LOG_DIRECTORY",
-            "NODE_OPTIONS",
-            "NODE_PATH",
-        ] {
+        for key in CLEARED_CHILD_ENV {
             command.env_remove(key);
         }
         command
@@ -761,5 +777,21 @@ mod tests {
         .unwrap();
 
         assert!(ensure_no_active_instance_lock(temporary.path()).is_err());
+    }
+
+    #[test]
+    fn managed_child_scrubs_hosted_database_and_node_overrides() {
+        for variable in [
+            "DB_TYPE",
+            "DB_HOST",
+            "DB_PORT",
+            "DB_USER",
+            "DB_PASS",
+            "DB_NAME",
+            "NODE_OPTIONS",
+            "NODE_PATH",
+        ] {
+            assert!(CLEARED_CHILD_ENV.contains(&variable));
+        }
     }
 }
