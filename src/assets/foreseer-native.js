@@ -73,6 +73,7 @@
             "player-events",
             "session-reset",
             "browser-cache-clear",
+            "mode-setup",
             "window-controls",
             "quit",
           ]
