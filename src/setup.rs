@@ -2,6 +2,11 @@ const SETUP_HTML_TEMPLATE: &str = include_str!("setup.html");
 const SETUP_EVENT_JS: &str = include_str!("setup-event.js");
 
 pub fn get_setup_html(recovery_message: &str) -> String {
+    let standalone_label = if recovery_message.is_empty() {
+        "Use Standalone"
+    } else {
+        "Retry Standalone"
+    };
     let recovery = if recovery_message.is_empty() {
         String::new()
     } else {
@@ -13,6 +18,7 @@ pub fn get_setup_html(recovery_message: &str) -> String {
 
     SETUP_HTML_TEMPLATE
         .replace("{{RECOVERY_MESSAGE}}", &recovery)
+        .replace("{{STANDALONE_ACTION_LABEL}}", standalone_label)
         .replace("{{SETUP_EVENT_JS}}", SETUP_EVENT_JS)
 }
 
@@ -41,6 +47,7 @@ mod tests {
         assert!(html.contains("Quit"));
         assert!(!html.contains("{{SETUP_EVENT_JS}}"));
         assert!(!html.contains("{{RECOVERY_MESSAGE}}"));
+        assert!(!html.contains("{{STANDALONE_ACTION_LABEL}}"));
         assert!(!html.contains("jelliumHost"));
     }
 
@@ -50,5 +57,6 @@ mod tests {
 
         assert!(html.contains("Unable to start &lt;script&gt;alert(&#39;xss&#39;)&lt;/script&gt;"));
         assert!(!html.contains("<script>alert('xss')</script>"));
+        assert!(html.contains("Retry Standalone"));
     }
 }
