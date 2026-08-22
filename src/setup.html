@@ -194,7 +194,7 @@
   <div class="card">
     <div class="logo">
       <h1>FORESEER</h1>
-      <p>Configure Server Connection</p>
+      <p>Use the bundled server or connect to an existing one</p>
     </div>
 
     <div class="form-group">
@@ -212,6 +212,7 @@
     <div id="statusBox" class="status-box"></div>
 
     <div class="btn-group">
+      <button type="button" class="btn-secondary" onclick="useStandalone()">Use Standalone</button>
       <button type="button" class="btn-secondary" id="testBtn" onclick="testConnection()">Test</button>
       <button type="button" class="btn-primary" id="saveBtn" onclick="saveAndConnect()">Connect & Save</button>
     </div>
@@ -248,7 +249,7 @@
           }
           const ok = host.send({
             id: reqId,
-            type: action === 'test' ? 'setup.check' : 'setup.save',
+            type: action === 'test' ? 'setup.check' : action === 'standalone' ? 'setup.standalone' : 'setup.save',
             url,
             allowHttp: !!allowHttp,
           });
@@ -260,6 +261,15 @@
           reject(new Error(err.message || 'Native integration missing'));
         }
       });
+    }
+
+    async function useStandalone() {
+      try {
+        await nativeCall('standalone', '', false);
+        showStatus('Standalone mode will start after restart.', 'success');
+      } catch (err) {
+        showStatus(err.message, 'error');
+      }
     }
 
     async function testConnection() {

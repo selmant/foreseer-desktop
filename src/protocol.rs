@@ -65,6 +65,8 @@ pub enum NativeCommandV1 {
         #[serde(rename = "allowHttp")]
         allow_http: bool,
     },
+    #[serde(rename = "setup.standalone")]
+    SetupStandalone { id: String },
     #[serde(rename = "window.minimize")]
     WindowMinimize { id: String },
     #[serde(rename = "window.toggle-maximize")]
@@ -84,6 +86,7 @@ impl NativeCommandV1 {
             | Self::PlayItem { id, .. }
             | Self::SetupCheck { id, .. }
             | Self::SetupSave { id, .. }
+            | Self::SetupStandalone { id }
             | Self::WindowMinimize { id }
             | Self::WindowToggleMaximize { id }
             | Self::WindowToggleFullscreen { id }

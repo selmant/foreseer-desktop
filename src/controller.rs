@@ -146,6 +146,10 @@ impl<R: RuntimeOps> Controller<R> {
                 url,
                 allow_http,
             } => self.on_setup_save(id, url, allow_http),
+            NativeCommandV1::SetupStandalone { id } => {
+                self.emit_error(&id, AuthErrorCode::InvalidRequest);
+                true
+            }
             NativeCommandV1::WindowMinimize { .. } => {
                 self.runtime.minimize();
                 true

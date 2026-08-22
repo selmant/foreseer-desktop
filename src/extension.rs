@@ -364,6 +364,7 @@ impl ForeseerExtension {
                 url,
                 allow_http,
             } => self.save_setup(id, url, allow_http),
+            NativeCommandV1::SetupStandalone { id } => self.save_standalone_setup(id),
             NativeCommandV1::PlayItem { id, item_id } => {
                 tracing::info!(
                     target: "ForeseerExtension",
@@ -411,6 +412,29 @@ impl ForeseerExtension {
                     .unwrap_or(false)
             }
         }
+    }
+
+    fn save_standalone_setup(&self, id: String) -> bool {
+        let mut config = AppConfig::load();
+        config.mode = AppMode::Standalone;
+        if config.save().is_err() {
+            self.with_inner(|inner| {
+                inner.controller.runtime.post_frontend_event(
+                    NativeEventV1::new(id, "error")
+                        .with_error("config_save_failed")
+                        .with_message("Could not save standalone mode"),
+                );
+            });
+            return true;
+        }
+        self.with_inner(|inner| {
+            inner
+                .controller
+                .runtime
+                .post_frontend_event(NativeEventV1::new(id, "save-config-success"));
+            inner.controller.runtime.request_shutdown();
+        });
+        true
     }
 
     fn start_setup_check(&self, id: String, url: String, allow_http: bool) -> bool {
