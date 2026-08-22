@@ -11,6 +11,9 @@ use std::process::{Child, ChildStdin, Command, Stdio};
 use std::sync::mpsc;
 use std::time::{Duration, Instant};
 
+#[cfg(unix)]
+use std::os::unix::process::CommandExt;
+
 use crate::config::AppConfig;
 
 pub const READY_PREFIX: &str = "FORESEERR_DESKTOP_READY ";
@@ -103,6 +106,8 @@ impl StandaloneSupervisor {
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped());
+        #[cfg(unix)]
+        command.process_group(0);
         for key in [
             "PORT",
             "HOST",
@@ -209,6 +214,12 @@ impl StandaloneSupervisor {
     }
     pub fn shutdown(&mut self) {
         self.send_control(r#"{"type":"shutdown","deadlineMs":10000}"#);
+        #[cfg(unix)]
+        if let Ok(pid) = i32::try_from(self.child.id()) {
+            // The child is the leader of a dedicated group, so this also
+            // reaches Node helpers spawned for native modules.
+            unsafe { libc::kill(-pid, libc::SIGTERM) };
+        }
         let deadline = Instant::now() + Duration::from_secs(10);
         while Instant::now() < deadline {
             if self.child.try_wait().ok().flatten().is_some() {
@@ -216,6 +227,11 @@ impl StandaloneSupervisor {
             }
             std::thread::sleep(Duration::from_millis(50));
         }
+        #[cfg(unix)]
+        if let Ok(pid) = i32::try_from(self.child.id()) {
+            unsafe { libc::kill(-pid, libc::SIGKILL) };
+        }
+        #[cfg(not(unix))]
         let _ = self.child.kill();
         let _ = self.child.wait();
     }
