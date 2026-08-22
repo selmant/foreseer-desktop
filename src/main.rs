@@ -47,7 +47,7 @@ fn main() {
         let child = match StandaloneSupervisor::start(&config) {
             Ok(child) => child,
             Err(error) => {
-                let setup_html = setup::get_setup_html(&format!("<p>{error}</p>"));
+                let setup_html = setup::get_setup_html(&error.to_string());
                 let url = format!(
                     "data:text/html;base64,{}",
                     base64::engine::general_purpose::STANDARD.encode(setup_html)
