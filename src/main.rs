@@ -1,6 +1,6 @@
 use base64::Engine;
 use directories::ProjectDirs;
-use foreseer_desktop::config::{AppConfig, AppMode, validate_foreseer_url};
+use foreseer_desktop::config::{AppConfig, AppMode, MIN_CACHE_LIMIT_BYTES, validate_foreseer_url};
 use foreseer_desktop::extension::ForeseerExtension;
 use foreseer_desktop::supervisor::StandaloneSupervisor;
 use jfn_rust::{HostExtensionDescriptor, HostOptions};
@@ -154,6 +154,7 @@ fn handle_cli_args() -> bool {
             println!("  --remote <URL>     Set remote Foreseerr URL and switch to remote mode");
             println!("  --set-url <URL>    Compatibility alias for --remote");
             println!("  --standalone       Switch to bundled standalone mode");
+            println!("  --cache-limit <B>  Set standalone transient cache budget in bytes");
             println!("  --allow-http       Allow insecure HTTP when saving server URL");
             println!("  --show-config      Display current config file path and settings");
             println!("  --help, -h         Show this help message");
@@ -220,6 +221,29 @@ fn handle_cli_args() -> bool {
                 std::process::exit(1);
             }
             println!("Successfully enabled standalone mode.");
+            std::process::exit(0);
+        }
+        "--cache-limit" => {
+            let Some(value) = args.get(2) else {
+                eprintln!("Error: --cache-limit requires a byte value");
+                std::process::exit(1);
+            };
+            let limit = match value.parse::<u64>() {
+                Ok(limit) if limit >= MIN_CACHE_LIMIT_BYTES => limit,
+                _ => {
+                    eprintln!(
+                        "Error: cache limit must be an integer of at least {MIN_CACHE_LIMIT_BYTES} bytes"
+                    );
+                    std::process::exit(1);
+                }
+            };
+            let mut config = AppConfig::load();
+            config.standalone.cache_limit_bytes = limit;
+            if let Err(e) = config.save() {
+                eprintln!("Error saving config: {e}");
+                std::process::exit(1);
+            }
+            println!("Successfully set standalone cache budget to {limit} bytes.");
             std::process::exit(0);
         }
         _ => {}
