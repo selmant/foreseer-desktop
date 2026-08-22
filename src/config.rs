@@ -157,8 +157,7 @@ impl AppConfig {
             })
     }
     pub fn cache_directory() -> Option<PathBuf> {
-        std::env::var_os("JELLIUM_DESKTOP_CACHE_DIR")
-            .or_else(|| std::env::var_os("FORESEER_CACHE_DIR"))
+        std::env::var_os("FORESEER_CACHE_DIR")
             .map(PathBuf::from)
             .or_else(|| {
                 ProjectDirs::from("com", "selmantrabzon", "Foreseer")

@@ -5,6 +5,7 @@ use foreseer_desktop::extension::ForeseerExtension;
 use foreseer_desktop::supervisor::StandaloneSupervisor;
 use jfn_rust::{HostExtensionDescriptor, HostOptions};
 use std::ffi::OsStr;
+use std::path::PathBuf;
 use std::process::Command;
 use std::sync::{Arc, Mutex};
 
@@ -235,7 +236,6 @@ fn configure_product_profile() {
     mirror_env("FORESEER_LOG_LEVEL", "JELLIUM_DESKTOP_LOG_LEVEL");
     mirror_env("FORESEER_LOG_FILE", "JELLIUM_DESKTOP_LOG_FILE");
     mirror_env("FORESEER_CONFIG_DIR", "JELLIUM_DESKTOP_CONFIG_DIR");
-    mirror_env("FORESEER_CACHE_DIR", "JELLIUM_DESKTOP_CACHE_DIR");
     mirror_env("FORESEER_PLATFORM_PAINT", "JELLIUM_DESKTOP_PLATFORM_PAINT");
     mirror_env("FORESEER_MPV_HOME", "MPV_HOME");
     set_default_env(
@@ -251,9 +251,13 @@ fn configure_product_profile() {
             "JELLIUM_DESKTOP_CONFIG_DIR",
             project_dirs.config_dir().as_os_str(),
         );
+        let cache_root = std::env::var_os("FORESEER_CACHE_DIR")
+            .map(PathBuf::from)
+            .unwrap_or_else(|| project_dirs.cache_dir().to_path_buf());
+        set_default_env("FORESEER_CACHE_DIR", cache_root.as_os_str());
         set_default_env(
             "JELLIUM_DESKTOP_CACHE_DIR",
-            project_dirs.cache_dir().as_os_str(),
+            cache_root.join("cef").as_os_str(),
         );
     }
 }
