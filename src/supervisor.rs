@@ -34,6 +34,7 @@ pub const READY_PREFIX: &str = "FORESEERR_DESKTOP_READY ";
 pub const READY_PROTOCOL_VERSION: u32 = 1;
 const READY_TIMEOUT: Duration = Duration::from_secs(90);
 const BUNDLED_FORESEERR_VERSION_FILE: &str = include_str!("../foreseerr.version");
+const BUNDLED_FORESEERR_REVISION_FILE: &str = include_str!("../foreseerr.rev");
 const CLEARED_CHILD_ENV: &[&str] = &[
     "PORT",
     "HOST",
@@ -61,6 +62,10 @@ const CLEARED_CHILD_ENV: &[&str] = &[
 
 fn bundled_foreseerr_version() -> &'static str {
     BUNDLED_FORESEERR_VERSION_FILE.trim()
+}
+
+fn bundled_foreseerr_revision() -> &'static str {
+    BUNDLED_FORESEERR_REVISION_FILE.trim()
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -249,6 +254,7 @@ impl StandaloneSupervisor {
             .env("LOG_DIRECTORY", &log_dir)
             .env("HOST", "127.0.0.1")
             .env("PORT", port.to_string())
+            .env("FORESEERR_COMMIT", bundled_foreseerr_revision())
             .env(
                 "FORESEER_CACHE_LIMIT_BYTES",
                 config.standalone.cache_limit_bytes.to_string(),
@@ -546,6 +552,11 @@ fn validate_ready(ready: &ReadyRecord) -> Result<(), SupervisorError> {
             "Bundled Foreseerr uses an unsupported desktop protocol".into(),
         ));
     }
+    if ready.commit != bundled_foreseerr_revision() {
+        return Err(SupervisorError::InvalidReady(
+            "Bundled Foreseerr supplied an unexpected revision".into(),
+        ));
+    }
     let url = url::Url::parse(&ready.origin).map_err(|_| {
         SupervisorError::InvalidReady("Bundled Foreseerr supplied an invalid origin".into())
     })?;
@@ -720,13 +731,25 @@ mod tests {
             pid: 1,
             origin: "http://127.0.0.1:43127".into(),
             foreseerr_version: "0.6.2".into(),
-            commit: "test".into(),
+            commit: bundled_foreseerr_revision().into(),
             schema_version: 1,
         };
         assert!(validate_ready(&ready).is_ok());
         let mut bad = ready;
         bad.origin = "http://localhost:43127".into();
         assert!(validate_ready(&bad).is_err());
+
+        let mut wrong_revision = ReadyRecord {
+            protocol_version: 1,
+            pid: 1,
+            origin: "http://127.0.0.1:43127".into(),
+            foreseerr_version: "0.6.2".into(),
+            commit: "unexpected".into(),
+            schema_version: 1,
+        };
+        assert!(validate_ready(&wrong_revision).is_err());
+        wrong_revision.commit = bundled_foreseerr_revision().into();
+        assert!(validate_ready(&wrong_revision).is_ok());
     }
 
     #[test]
