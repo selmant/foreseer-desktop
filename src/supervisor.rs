@@ -13,6 +13,16 @@ use std::time::{Duration, Instant};
 
 #[cfg(unix)]
 use std::os::unix::process::CommandExt;
+#[cfg(windows)]
+use std::os::windows::io::AsRawHandle;
+#[cfg(windows)]
+use windows_sys::Win32::Foundation::{CloseHandle, HANDLE};
+#[cfg(windows)]
+use windows_sys::Win32::System::JobObjects::{
+    AssignProcessToJobObject, CreateJobObjectW, JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE,
+    JOBOBJECT_EXTENDED_LIMIT_INFORMATION, JobObjectExtendedLimitInformation,
+    SetInformationJobObject, TerminateJobObject,
+};
 
 use crate::config::AppConfig;
 
@@ -96,8 +106,59 @@ impl std::error::Error for SupervisorError {}
 pub struct StandaloneSupervisor {
     child: Child,
     stdin: Option<ChildStdin>,
+    #[cfg(windows)]
+    job: WindowsJob,
     pub origin: String,
     pub diagnostics: Vec<String>,
+}
+
+/// Owns a Windows Job Object with kill-on-close semantics. Node may spawn
+/// helpers for native modules, so terminating only the immediate Node process
+/// is insufficient on Windows.
+#[cfg(windows)]
+struct WindowsJob {
+    handle: HANDLE,
+}
+
+#[cfg(windows)]
+impl WindowsJob {
+    fn assign(child: &Child) -> std::io::Result<Self> {
+        let handle = unsafe { CreateJobObjectW(std::ptr::null(), std::ptr::null()) };
+        if handle.is_null() {
+            return Err(std::io::Error::last_os_error());
+        }
+        let mut limits = JOBOBJECT_EXTENDED_LIMIT_INFORMATION::default();
+        limits.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
+        let configured = unsafe {
+            SetInformationJobObject(
+                handle,
+                JobObjectExtendedLimitInformation,
+                (&limits as *const JOBOBJECT_EXTENDED_LIMIT_INFORMATION).cast(),
+                std::mem::size_of::<JOBOBJECT_EXTENDED_LIMIT_INFORMATION>() as u32,
+            )
+        };
+        if configured == 0 {
+            unsafe { CloseHandle(handle) };
+            return Err(std::io::Error::last_os_error());
+        }
+        let assigned = unsafe { AssignProcessToJobObject(handle, child.as_raw_handle()) };
+        if assigned == 0 {
+            unsafe { CloseHandle(handle) };
+            return Err(std::io::Error::last_os_error());
+        }
+        Ok(Self { handle })
+    }
+
+    fn terminate(&self) {
+        unsafe { TerminateJobObject(self.handle, 1) };
+    }
+}
+
+#[cfg(windows)]
+impl Drop for WindowsJob {
+    fn drop(&mut self) {
+        unsafe { CloseHandle(self.handle) };
+    }
 }
 
 impl StandaloneSupervisor {
@@ -161,6 +222,15 @@ impl StandaloneSupervisor {
                 config.standalone.cache_limit_bytes.to_string(),
             );
         let mut child = command.spawn().map_err(SupervisorError::Spawn)?;
+        #[cfg(windows)]
+        let job = match WindowsJob::assign(&child) {
+            Ok(job) => job,
+            Err(error) => {
+                let _ = child.kill();
+                let _ = child.wait();
+                return Err(SupervisorError::Spawn(error));
+            }
+        };
         let stdout = child.stdout.take().expect("stdout piped");
         let stderr = child.stderr.take().expect("stderr piped");
         let (tx, rx) = mpsc::channel();
@@ -223,6 +293,8 @@ impl StandaloneSupervisor {
                     let supervisor = Self {
                         stdin: child.stdin.take(),
                         child,
+                        #[cfg(windows)]
+                        job,
                         origin: ready.origin,
                         diagnostics,
                     };
@@ -270,7 +342,9 @@ impl StandaloneSupervisor {
         if let Ok(pid) = i32::try_from(self.child.id()) {
             unsafe { libc::kill(-pid, libc::SIGKILL) };
         }
-        #[cfg(not(unix))]
+        #[cfg(windows)]
+        self.job.terminate();
+        #[cfg(all(not(unix), not(windows)))]
         let _ = self.child.kill();
         let _ = self.child.wait();
     }
