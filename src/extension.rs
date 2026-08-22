@@ -91,6 +91,7 @@ pub struct ForeseerExtension {
     standalone_supervisor: Option<Arc<Mutex<StandaloneSupervisor>>>,
     runtime_shutting_down: Arc<AtomicBool>,
     runtime_failed: Arc<AtomicBool>,
+    automatic_restart_attempted: Arc<AtomicBool>,
 }
 
 impl ForeseerExtension {
@@ -126,6 +127,7 @@ impl ForeseerExtension {
             standalone_supervisor,
             runtime_shutting_down: Arc::new(AtomicBool::new(false)),
             runtime_failed: Arc::new(AtomicBool::new(false)),
+            automatic_restart_attempted: Arc::new(AtomicBool::new(false)),
         });
         if let Ok(mut slot) = extension.self_weak.lock() {
             *slot = Some(Arc::downgrade(&extension));
@@ -326,6 +328,7 @@ impl ForeseerExtension {
         };
         let shutting_down = Arc::clone(&self.runtime_shutting_down);
         let runtime_failed = Arc::clone(&self.runtime_failed);
+        let automatic_restart_attempted = Arc::clone(&self.automatic_restart_attempted);
         std::thread::spawn(move || {
             let mut tracker = RuntimeHealthTracker::default();
             loop {
@@ -342,6 +345,20 @@ impl ForeseerExtension {
                 }
                 if shutting_down.load(Ordering::Acquire) {
                     return;
+                }
+                if !automatic_restart_attempted.swap(true, Ordering::AcqRel) {
+                    let recovered = supervisor
+                        .lock()
+                        .map(|mut child| child.retry_on_original_port())
+                        .is_ok_and(|result| result.is_ok());
+                    if recovered {
+                        tracker = RuntimeHealthTracker::default();
+                        let event = NativeEventV1::new("runtime", "runtime-recovered");
+                        if let Ok(bytes) = serialize_event(&event) {
+                            let _ = runtime.post_message(ExtensionSource::Frontend, &bytes);
+                        }
+                        continue;
+                    }
                 }
                 runtime_failed.store(true, Ordering::Release);
                 let _ = runtime.set_presentation(JfnPresentation::Frontend);
