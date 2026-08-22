@@ -141,6 +141,10 @@ pub struct StandaloneSupervisor {
     pub origin: String,
     pub diagnostics: Vec<String>,
     config: AppConfig,
+    config_dir: PathBuf,
+    ready: ReadyRecord,
+    upgrade_backup: Option<PathBuf>,
+    successful_status_recorded: bool,
 }
 
 /// Owns a Windows Job Object with kill-on-close semantics. Node may spawn
@@ -357,7 +361,7 @@ impl StandaloneSupervisor {
                             ready.foreseerr_version
                         )));
                     }
-                    let mut supervisor = Self {
+                    let supervisor = Self {
                         stdin: child.stdin.take(),
                         child,
                         #[cfg(windows)]
@@ -365,27 +369,11 @@ impl StandaloneSupervisor {
                         origin: ready.origin.clone(),
                         diagnostics,
                         config: config.clone(),
+                        config_dir,
+                        ready,
+                        upgrade_backup,
+                        successful_status_recorded: false,
                     };
-                    if !supervisor.status_is_healthy() {
-                        supervisor.shutdown();
-                        return Err(SupervisorError::Startup(
-                            "Bundled Foreseerr did not pass its status health check".into(),
-                        ));
-                    }
-                    if let Err(error) = write_runtime_version(
-                        &config_dir,
-                        &ready.foreseerr_version,
-                        ready.schema_version,
-                    ) {
-                        supervisor.shutdown();
-                        return Err(error);
-                    }
-                    if let Some(backup) = upgrade_backup {
-                        if let Err(error) = complete_upgrade_backup(&backup, &ready) {
-                            supervisor.shutdown();
-                            return Err(error);
-                        }
-                    }
                     return Ok(supervisor);
                 }
             }
@@ -426,7 +414,13 @@ impl StandaloneSupervisor {
     pub fn health(&mut self) -> RuntimeHealth {
         match self.child.try_wait() {
             Ok(Some(_)) => RuntimeHealth::Exited,
-            Ok(None) if self.status_is_healthy() => RuntimeHealth::Healthy,
+            Ok(None) if self.status_is_healthy() => match self.record_successful_status() {
+                Ok(()) => RuntimeHealth::Healthy,
+                Err(error) => {
+                    self.diagnostics.push(redact(&error.to_string()));
+                    RuntimeHealth::Unhealthy
+                }
+            },
             Ok(None) | Err(_) => RuntimeHealth::Unhealthy,
         }
     }
@@ -473,6 +467,27 @@ impl StandaloneSupervisor {
             .call()
             .ok()
             .is_some_and(|response| response.status().is_success())
+    }
+
+    /// Readiness proves that the server owns the exact loopback listener. The
+    /// first status response is deliberately recorded only after CEF is live:
+    /// it is both the supervisor's runtime health baseline and the point at
+    /// which an upgrade may be considered successful.
+    fn record_successful_status(&mut self) -> Result<(), SupervisorError> {
+        if self.successful_status_recorded {
+            return Ok(());
+        }
+        write_runtime_version(
+            &self.config_dir,
+            &self.ready.foreseerr_version,
+            self.ready.schema_version,
+        )?;
+        if let Some(backup) = self.upgrade_backup.as_deref() {
+            complete_upgrade_backup(backup, &self.ready)?;
+        }
+        self.upgrade_backup = None;
+        self.successful_status_recorded = true;
+        Ok(())
     }
 }
 impl Drop for StandaloneSupervisor {
