@@ -48,6 +48,13 @@ pub enum SupervisorError {
     Startup(String),
     InvalidReady(String),
 }
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RuntimeHealth {
+    Healthy,
+    Unhealthy,
+    Exited,
+}
 impl std::fmt::Display for SupervisorError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -211,6 +218,15 @@ impl StandaloneSupervisor {
         self.send_control(&format!(
             r#"{{"type":"runtime-state","playbackActive":{active}}}"#
         ));
+    }
+    /// Poll only after readiness. Callers can require three consecutive
+    /// unhealthy results before presenting recovery UI.
+    pub fn health(&mut self) -> RuntimeHealth {
+        match self.child.try_wait() {
+            Ok(Some(_)) => RuntimeHealth::Exited,
+            Ok(None) if self.status_is_healthy() => RuntimeHealth::Healthy,
+            Ok(None) | Err(_) => RuntimeHealth::Unhealthy,
+        }
     }
     pub fn shutdown(&mut self) {
         self.send_control(r#"{"type":"shutdown","deadlineMs":10000}"#);
