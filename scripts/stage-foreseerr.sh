@@ -7,6 +7,7 @@ SOURCE="${FORESEERR_DIR:-$ROOT/../SeerrSuggestArr}"
 NODE_BIN="${FORESEERR_NODE_BIN:-$(command -v node)}"
 DEST="${1:-$ROOT/resources}"
 VERSION_PIN="$(tr -d '[:space:]' < "$ROOT/foreseerr.version")"
+REVISION_PIN="$(tr -d '[:space:]' < "$ROOT/foreseerr.rev")"
 NODE_PIN="$(tr -d '[:space:]' < "$ROOT/node.rev")"
 
 if [[ ! -x "$NODE_BIN" ]]; then
@@ -19,6 +20,14 @@ if [[ "$($NODE_BIN --version)" != "$NODE_PIN" ]]; then
 fi
 if [[ ! -f "$SOURCE/package.json" ]]; then
   echo "stage-foreseerr: no Foreseerr checkout at $SOURCE" >&2
+  exit 1
+fi
+if [[ "$(git -C "$SOURCE" rev-parse HEAD)" != "$REVISION_PIN" ]]; then
+  echo "stage-foreseerr: Foreseerr checkout does not match foreseerr.rev" >&2
+  exit 1
+fi
+if ! git -C "$SOURCE" diff --quiet || ! git -C "$SOURCE" diff --cached --quiet; then
+  echo "stage-foreseerr: Foreseerr checkout must be clean" >&2
   exit 1
 fi
 VERSION="$($NODE_BIN -p "require('$SOURCE/package.json').version")"
