@@ -233,7 +233,11 @@ impl AppConfig {
         }
         let json = serde_json::to_string_pretty(self)
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
-        fs::write(path, json)
+        // Keep a power loss or interrupted mode switch from replacing the
+        // durable configuration with a partial JSON document.
+        let temporary = path.with_extension("json.tmp");
+        fs::write(&temporary, json)?;
+        fs::rename(temporary, path)
     }
 }
 
