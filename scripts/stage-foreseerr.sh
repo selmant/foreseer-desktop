@@ -7,9 +7,14 @@ SOURCE="${FORESEERR_DIR:-$ROOT/../SeerrSuggestArr}"
 NODE_BIN="${FORESEERR_NODE_BIN:-$(command -v node)}"
 DEST="${1:-$ROOT/resources}"
 PIN="$(tr -d '[:space:]' < "$ROOT/foreseerr.rev")"
+NODE_PIN="$(tr -d '[:space:]' < "$ROOT/node.rev")"
 
 if [[ ! -x "$NODE_BIN" ]]; then
   echo "stage-foreseerr: provide FORESEERR_NODE_BIN or install Node 22" >&2
+  exit 1
+fi
+if [[ "$($NODE_BIN --version)" != "$NODE_PIN" ]]; then
+  echo "stage-foreseerr: Node $NODE_PIN is required" >&2
   exit 1
 fi
 if [[ ! -f "$SOURCE/package.json" ]]; then
