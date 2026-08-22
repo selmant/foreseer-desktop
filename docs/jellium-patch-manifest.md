@@ -25,6 +25,10 @@ recorded here before `scripts/boundary-audit.sh` will pass.
 | `0382e02` | `0382e0217e91f93f9233a0a6e7e2798961b968a0` | runtime fix | Prevent Linux CEF mallinfo overflow abort |
 | `873d1e3` | `873d1e3221be19d5140d3e9ca53972d1099dc0a2` | runtime fix | Resume mpv presentation after compositor suspension |
 | `cb4e9d0` | `cb4e9d0a73358dda95555fa7f6110d83ef418110` | runtime fix | Stop in-page `<select>` clicks from dismissing page dialogs |
+| `f41b823` | `f41b8232b07b5607318624fe89c7dafb46750edd` | feature | Generic CEF disk-cache byte-limit host option |
+| `07f2c51` | `07f2c513ca71b5b41f9dcc88038f10fc918e6fb8` | hygiene | Format generic CEF cache initialization |
+| `b6984a8` | `b6984a80ac7f2d63c42a66e96a1a67a163448c63` | feature | Generic CEF HTTP-cache clearing host API |
+| `55f8036` | `55f803665f40a0540dc10555b991595ba0e89012` | test | Cover cache-limit composition with host extensions |
 
 ## Ownership rules
 
