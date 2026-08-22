@@ -55,6 +55,29 @@ pub enum RuntimeHealth {
     Unhealthy,
     Exited,
 }
+
+/// Tracks the recovery threshold without conflating a transient health probe
+/// failure with a confirmed child-runtime failure.
+#[derive(Debug, Default)]
+pub struct RuntimeHealthTracker {
+    consecutive_unhealthy: u8,
+}
+
+impl RuntimeHealthTracker {
+    pub fn observe(&mut self, health: RuntimeHealth) -> bool {
+        match health {
+            RuntimeHealth::Healthy => {
+                self.consecutive_unhealthy = 0;
+                false
+            }
+            RuntimeHealth::Exited => true,
+            RuntimeHealth::Unhealthy => {
+                self.consecutive_unhealthy = self.consecutive_unhealthy.saturating_add(1);
+                self.consecutive_unhealthy >= 3
+            }
+        }
+    }
+}
 impl std::fmt::Display for SupervisorError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -409,5 +432,15 @@ mod tests {
         let mut bad = ready;
         bad.origin = "http://localhost:43127".into();
         assert!(validate_ready(&bad).is_err());
+    }
+
+    #[test]
+    fn health_tracker_requires_three_probe_failures_but_exits_immediately() {
+        let mut tracker = RuntimeHealthTracker::default();
+        assert!(!tracker.observe(RuntimeHealth::Unhealthy));
+        assert!(!tracker.observe(RuntimeHealth::Unhealthy));
+        assert!(tracker.observe(RuntimeHealth::Unhealthy));
+        assert!(!tracker.observe(RuntimeHealth::Healthy));
+        assert!(tracker.observe(RuntimeHealth::Exited));
     }
 }
