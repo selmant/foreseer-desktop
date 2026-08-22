@@ -260,6 +260,14 @@ impl HostExtension for ForeseerExtension {
                 pending_bootstrap: None,
             });
         }
+        // This is the first point at which the managed child knows its CEF
+        // frontend is live. A false playback state starts its delayed,
+        // coalesced desktop catch-up pass without running work during startup.
+        if let Some(supervisor) = &self.standalone_supervisor
+            && let Ok(mut supervisor) = supervisor.lock()
+        {
+            supervisor.set_playback_active(false);
+        }
         self.monitor_standalone_runtime(runtime);
     }
 
