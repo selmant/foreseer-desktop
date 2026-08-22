@@ -85,6 +85,12 @@
       ]
     },
     {
+      "type": "runtime.open-logs",
+      "fields": [
+        "id"
+      ]
+    },
+    {
       "type": "window.minimize",
       "fields": [
         "id"
@@ -125,6 +131,7 @@
     ,"browser-cache-cleared",
     "runtime-failed"
     ,"runtime-recovered"
+    ,"logs-opened"
   ],
   "terminalPlayEventTypes": [
     "stopped",

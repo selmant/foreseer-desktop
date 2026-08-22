@@ -215,6 +215,7 @@
 
     <div class="btn-group">
       <button type="button" class="btn-secondary" onclick="useStandalone()">Use Standalone</button>
+      <button type="button" class="btn-secondary" onclick="openLogs()">Open Logs</button>
       <button type="button" class="btn-secondary" id="testBtn" onclick="testConnection()">Test</button>
       <button type="button" class="btn-primary" id="saveBtn" onclick="saveAndConnect()">Connect & Save</button>
     </div>
@@ -251,7 +252,7 @@
           }
           const ok = host.send({
             id: reqId,
-            type: action === 'test' ? 'setup.check' : action === 'standalone' ? 'setup.standalone' : 'setup.save',
+            type: action === 'test' ? 'setup.check' : action === 'standalone' ? 'setup.standalone' : action === 'logs' ? 'runtime.open-logs' : 'setup.save',
             url,
             allowHttp: !!allowHttp,
           });
@@ -269,6 +270,15 @@
       try {
         await nativeCall('standalone', '', false);
         showStatus('Standalone mode will start after restart.', 'success');
+      } catch (err) {
+        showStatus(err.message, 'error');
+      }
+    }
+
+    async function openLogs() {
+      try {
+        await nativeCall('logs', '', false);
+        showStatus('Opened standalone logs.', 'success');
       } catch (err) {
         showStatus(err.message, 'error');
       }

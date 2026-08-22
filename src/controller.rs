@@ -155,6 +155,7 @@ impl<R: RuntimeOps> Controller<R> {
             NativeCommandV1::BrowserCacheClear { .. } => true,
             // The extension owns retry state and exact-port rebinding.
             NativeCommandV1::RuntimeRetry { .. } => true,
+            NativeCommandV1::RuntimeOpenLogs { .. } => true,
             NativeCommandV1::WindowMinimize { .. } => {
                 self.runtime.minimize();
                 true

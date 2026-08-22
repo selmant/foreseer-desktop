@@ -43,7 +43,13 @@
       retry.disabled = true;
       api.send({ type: "runtime.retry", id: crypto.randomUUID() });
     });
-    root.append(heading, detail, hint, retry, quit);
+    const logs = document.createElement("button");
+    logs.type = "button";
+    logs.textContent = "Open Logs";
+    logs.addEventListener("click", function () {
+      api.send({ type: "runtime.open-logs", id: crypto.randomUUID() });
+    });
+    root.append(heading, detail, hint, retry, logs, quit);
     document.body.append(root);
   }
 
@@ -75,6 +81,7 @@
         case "auth.challenge":
         case "session.clear":
         case "runtime.retry":
+        case "runtime.open-logs":
         case "window.minimize":
         case "window.toggle-maximize":
         case "window.toggle-fullscreen":

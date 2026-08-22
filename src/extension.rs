@@ -1,5 +1,6 @@
 //! Jellium `HostExtension` adapter for Foreseer protocol v1.
 
+use std::process::Command;
 use std::sync::{
     Arc, Mutex, Weak,
     atomic::{AtomicBool, Ordering},
@@ -418,6 +419,7 @@ impl ForeseerExtension {
                 self.clear_browser_cache(id, ticket)
             }
             NativeCommandV1::RuntimeRetry { id } => self.retry_standalone_runtime(id),
+            NativeCommandV1::RuntimeOpenLogs { id } => self.open_standalone_logs(id),
             NativeCommandV1::PlayItem { id, item_id } => {
                 tracing::info!(
                     target: "ForeseerExtension",
@@ -567,6 +569,26 @@ impl ForeseerExtension {
                     }
                 }
             }
+        });
+        true
+    }
+
+    fn open_standalone_logs(&self, id: String) -> bool {
+        let result = AppConfig::standalone_log_directory()
+            .ok_or_else(|| "Standalone log directory is unavailable".to_string())
+            .and_then(|directory| {
+                std::fs::create_dir_all(&directory)
+                    .map_err(|error| format!("Could not prepare log directory: {error}"))?;
+                open_directory(&directory)
+            });
+        self.with_inner(|inner| {
+            let event = match result {
+                Ok(()) => NativeEventV1::new(id, "logs-opened"),
+                Err(message) => NativeEventV1::new(id, "error")
+                    .with_error("open_logs_failed")
+                    .with_message(message),
+            };
+            inner.controller.runtime.post_frontend_event(event);
         });
         true
     }
@@ -722,4 +744,21 @@ impl ForeseerExtension {
             _ => false,
         }
     }
+}
+
+fn open_directory(directory: &std::path::Path) -> Result<(), String> {
+    #[cfg(target_os = "linux")]
+    let command = ("xdg-open", directory);
+    #[cfg(target_os = "windows")]
+    let command = ("explorer.exe", directory);
+    #[cfg(target_os = "macos")]
+    let command = ("open", directory);
+    #[cfg(not(any(target_os = "linux", target_os = "windows", target_os = "macos")))]
+    return Err("Opening logs is unsupported on this platform".into());
+
+    Command::new(command.0)
+        .arg(command.1)
+        .spawn()
+        .map(|_| ())
+        .map_err(|error| format!("Could not open logs: {error}"))
 }
