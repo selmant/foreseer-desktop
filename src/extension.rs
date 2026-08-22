@@ -1,6 +1,9 @@
 //! Jellium `HostExtension` adapter for Foreseer protocol v1.
 
-use std::sync::{Arc, Mutex, Weak};
+use std::sync::{
+    Arc, Mutex, Weak,
+    atomic::{AtomicBool, Ordering},
+};
 use std::time::Duration;
 
 use jfn_rust::{
@@ -85,6 +88,7 @@ pub struct ForeseerExtension {
     state: Mutex<Option<Inner>>,
     self_weak: Mutex<Option<Weak<ForeseerExtension>>>,
     standalone_supervisor: Option<Arc<Mutex<StandaloneSupervisor>>>,
+    runtime_shutting_down: Arc<AtomicBool>,
 }
 
 impl ForeseerExtension {
@@ -118,6 +122,7 @@ impl ForeseerExtension {
             state: Mutex::new(None),
             self_weak: Mutex::new(None),
             standalone_supervisor,
+            runtime_shutting_down: Arc::new(AtomicBool::new(false)),
         });
         if let Ok(mut slot) = extension.self_weak.lock() {
             *slot = Some(Arc::downgrade(&extension));
@@ -282,6 +287,7 @@ impl HostExtension for ForeseerExtension {
                 }
             }
             RuntimeEvent::ShutdownBeginning => {
+                self.runtime_shutting_down.store(true, Ordering::Release);
                 if let Some(supervisor) = self.standalone_supervisor.clone() {
                     std::thread::spawn(move || {
                         if let Ok(mut supervisor) = supervisor.lock() {
@@ -315,16 +321,23 @@ impl ForeseerExtension {
         let Some(supervisor) = self.standalone_supervisor.clone() else {
             return;
         };
+        let shutting_down = Arc::clone(&self.runtime_shutting_down);
         std::thread::spawn(move || {
             let mut tracker = RuntimeHealthTracker::default();
             loop {
                 std::thread::sleep(Duration::from_secs(10));
+                if shutting_down.load(Ordering::Acquire) {
+                    return;
+                }
                 let failed = supervisor
                     .lock()
                     .map(|mut child| tracker.observe(child.health()))
                     .unwrap_or(true);
                 if !failed {
                     continue;
+                }
+                if shutting_down.load(Ordering::Acquire) {
+                    return;
                 }
                 let _ = runtime.set_presentation(JfnPresentation::Frontend);
                 let event = NativeEventV1::new("runtime", "runtime-failed")
