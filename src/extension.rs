@@ -507,6 +507,16 @@ impl ForeseerExtension {
             });
             return true;
         }
+        if let Err(message) = relaunch_application() {
+            self.with_inner(|inner| {
+                inner.controller.runtime.post_frontend_event(
+                    NativeEventV1::new(id, "error")
+                        .with_error("restart_failed")
+                        .with_message(message),
+                );
+            });
+            return true;
+        }
         self.with_inner(|inner| {
             inner
                 .controller
@@ -769,6 +779,18 @@ impl ForeseerExtension {
             _ => false,
         }
     }
+}
+
+fn relaunch_application() -> Result<(), String> {
+    let executable = std::env::current_exe()
+        .map_err(|error| format!("Could not locate Foreseer executable: {error}"))?;
+    Command::new(executable)
+        .env_remove("FORESEER_SETUP_RELAUNCHED")
+        .env_remove("FORESEER_URL")
+        .env_remove("FORESEER_ALLOW_INSECURE_HTTP")
+        .spawn()
+        .map(|_| ())
+        .map_err(|error| format!("Could not restart Foreseer: {error}"))
 }
 
 fn open_directory(directory: &std::path::Path) -> Result<(), String> {
