@@ -4,6 +4,7 @@
   const eventTypes = Object.freeze([
     "connectivity-success",
     "save-config-success",
+    "cache-clear-success",
     "error",
   ]);
 

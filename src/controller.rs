@@ -150,6 +150,10 @@ impl<R: RuntimeOps> Controller<R> {
                 self.emit_error(&id, AuthErrorCode::InvalidRequest);
                 true
             }
+            NativeCommandV1::CacheClearBrowser { id } => {
+                self.emit_error(&id, AuthErrorCode::InvalidRequest);
+                true
+            }
             NativeCommandV1::WindowMinimize { .. } => {
                 self.runtime.minimize();
                 true
