@@ -11,6 +11,7 @@ pub const DEFAULT_FRONTEND_URL: &str = "https://foreseer.example.com";
 pub const MAX_FORESEER_URL_LEN: usize = 2048;
 pub const CONFIG_SCHEMA_VERSION: u32 = 2;
 pub const DEFAULT_CACHE_LIMIT_BYTES: u64 = 2 * 1024 * 1024 * 1024;
+pub const MIN_CACHE_LIMIT_BYTES: u64 = 128 * 1024 * 1024;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ForeseerUrlError {
@@ -210,6 +211,10 @@ impl AppConfig {
             })
             .unwrap_or_default();
         config.schema_version = CONFIG_SCHEMA_VERSION;
+        config.standalone.cache_limit_bytes = config
+            .standalone
+            .cache_limit_bytes
+            .max(MIN_CACHE_LIMIT_BYTES);
         if let Ok(url) = std::env::var("FORESEER_URL")
             && !url.trim().is_empty()
         {
@@ -267,6 +272,10 @@ mod tests {
         let config = AppConfig::default();
         assert_eq!(config.mode, AppMode::Standalone);
         assert_eq!(config.standalone.cache_limit_bytes, 2_147_483_648);
+    }
+    #[test]
+    fn standalone_cache_budget_has_a_safe_minimum() {
+        assert_eq!(MIN_CACHE_LIMIT_BYTES, 128 * 1024 * 1024);
     }
     #[test]
     fn insecure_foreseer_urls_require_local_override() {
