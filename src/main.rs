@@ -179,7 +179,7 @@ fn handle_cli_args() -> bool {
             println!("Cache budget:   {}", config.standalone.cache_limit_bytes);
             println!(
                 "Bundled Foreseerr version: {}",
-                include_str!("../foreseerr.rev").trim()
+                include_str!("../foreseerr.version").trim()
             );
             std::process::exit(0);
         }

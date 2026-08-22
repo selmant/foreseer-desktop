@@ -19,7 +19,7 @@ use crate::config::AppConfig;
 pub const READY_PREFIX: &str = "FORESEERR_DESKTOP_READY ";
 pub const READY_PROTOCOL_VERSION: u32 = 1;
 const READY_TIMEOUT: Duration = Duration::from_secs(90);
-const BUNDLED_FORESEERR_VERSION_FILE: &str = include_str!("../foreseerr.rev");
+const BUNDLED_FORESEERR_VERSION_FILE: &str = include_str!("../foreseerr.version");
 
 fn bundled_foreseerr_version() -> &'static str {
     BUNDLED_FORESEERR_VERSION_FILE.trim()
