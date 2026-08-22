@@ -38,6 +38,8 @@ fn bundled_foreseerr_version() -> &'static str {
 #[derive(Debug, Deserialize, Serialize)]
 struct RuntimeVersion {
     foreseerr_version: String,
+    #[serde(default)]
+    schema_version: u32,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
@@ -194,7 +196,7 @@ impl StandaloneSupervisor {
         ] {
             std::fs::create_dir_all(directory).map_err(SupervisorError::Spawn)?;
         }
-        backup_before_upgrade(&config_dir)?;
+        let upgrade_backup = backup_before_upgrade(&config_dir)?;
         let mut command = Command::new(node);
         command
             .arg(launcher)
@@ -295,21 +297,35 @@ impl StandaloneSupervisor {
                             ready.foreseerr_version
                         )));
                     }
-                    let supervisor = Self {
+                    let mut supervisor = Self {
                         stdin: child.stdin.take(),
                         child,
                         #[cfg(windows)]
                         job,
-                        origin: ready.origin,
+                        origin: ready.origin.clone(),
                         diagnostics,
                         config: config.clone(),
                     };
                     if !supervisor.status_is_healthy() {
+                        supervisor.shutdown();
                         return Err(SupervisorError::Startup(
                             "Bundled Foreseerr did not pass its status health check".into(),
                         ));
                     }
-                    write_runtime_version(&config_dir, &ready.foreseerr_version)?;
+                    if let Err(error) = write_runtime_version(
+                        &config_dir,
+                        &ready.foreseerr_version,
+                        ready.schema_version,
+                    ) {
+                        supervisor.shutdown();
+                        return Err(error);
+                    }
+                    if let Some(backup) = upgrade_backup {
+                        if let Err(error) = complete_upgrade_backup(&backup, &ready) {
+                            supervisor.shutdown();
+                            return Err(error);
+                        }
+                    }
                     return Ok(supervisor);
                 }
             }
@@ -453,16 +469,16 @@ fn redact(line: &str) -> String {
     }
 }
 
-fn backup_before_upgrade(config_dir: &Path) -> Result<(), SupervisorError> {
+fn backup_before_upgrade(config_dir: &Path) -> Result<Option<PathBuf>, SupervisorError> {
     let state_file = config_dir.join("state/runtime-version.json");
     let previous = fs::read_to_string(&state_file)
         .ok()
         .and_then(|text| serde_json::from_str::<RuntimeVersion>(&text).ok());
     let Some(previous) = previous else {
-        return Ok(());
+        return Ok(None);
     };
     if previous.foreseerr_version == bundled_foreseerr_version() {
-        return Ok(());
+        return Ok(None);
     }
     let timestamp = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -489,7 +505,9 @@ fn backup_before_upgrade(config_dir: &Path) -> Result<(), SupervisorError> {
     }
     let metadata = serde_json::json!({
         "previousVersion": previous.foreseerr_version,
+        "previousSchemaVersion": previous.schema_version,
         "newVersion": bundled_foreseerr_version(),
+        "newSchemaVersion": null,
         "createdAt": timestamp,
     });
     fs::write(
@@ -508,13 +526,33 @@ fn backup_before_upgrade(config_dir: &Path) -> Result<(), SupervisorError> {
         let oldest = entries.remove(0);
         fs::remove_dir_all(oldest.path()).map_err(SupervisorError::Spawn)?;
     }
-    Ok(())
+    Ok(Some(backup))
 }
 
-fn write_runtime_version(config_dir: &Path, version: &str) -> Result<(), SupervisorError> {
+fn complete_upgrade_backup(backup: &Path, ready: &ReadyRecord) -> Result<(), SupervisorError> {
+    let metadata_path = backup.join("metadata.json");
+    let mut metadata: serde_json::Value =
+        serde_json::from_slice(&fs::read(&metadata_path).map_err(SupervisorError::Spawn)?)
+            .map_err(|error| SupervisorError::Startup(error.to_string()))?;
+    metadata["newVersion"] = serde_json::Value::String(ready.foreseerr_version.clone());
+    metadata["newSchemaVersion"] = serde_json::Value::from(ready.schema_version);
+    fs::write(
+        metadata_path,
+        serde_json::to_vec_pretty(&metadata)
+            .map_err(|error| SupervisorError::Startup(error.to_string()))?,
+    )
+    .map_err(SupervisorError::Spawn)
+}
+
+fn write_runtime_version(
+    config_dir: &Path,
+    version: &str,
+    schema_version: u32,
+) -> Result<(), SupervisorError> {
     let state = config_dir.join("state/runtime-version.json");
     let payload = serde_json::to_vec_pretty(&RuntimeVersion {
         foreseerr_version: version.into(),
+        schema_version,
     })
     .map_err(|error| SupervisorError::Startup(error.to_string()))?;
     fs::write(state, payload).map_err(SupervisorError::Spawn)
@@ -547,5 +585,46 @@ mod tests {
         assert!(tracker.observe(RuntimeHealth::Unhealthy));
         assert!(!tracker.observe(RuntimeHealth::Healthy));
         assert!(tracker.observe(RuntimeHealth::Exited));
+    }
+
+    #[test]
+    fn upgrade_backup_records_schema_only_after_verified_readiness() {
+        let temporary = tempfile::tempdir().unwrap();
+        let config_dir = temporary.path();
+        fs::create_dir_all(config_dir.join("state")).unwrap();
+        fs::write(
+            config_dir.join("state/runtime-version.json"),
+            r#"{"foreseerr_version":"0.0.1","schema_version":123}"#,
+        )
+        .unwrap();
+
+        let backup = backup_before_upgrade(config_dir).unwrap().unwrap();
+        let pending: serde_json::Value =
+            serde_json::from_slice(&fs::read(backup.join("metadata.json")).unwrap()).unwrap();
+        assert_eq!(pending["previousSchemaVersion"], 123);
+        assert!(pending["newSchemaVersion"].is_null());
+
+        complete_upgrade_backup(
+            &backup,
+            &ReadyRecord {
+                protocol_version: READY_PROTOCOL_VERSION,
+                pid: 1,
+                origin: "http://127.0.0.1:43127".into(),
+                foreseerr_version: bundled_foreseerr_version().into(),
+                commit: "test".into(),
+                schema_version: 456,
+            },
+        )
+        .unwrap();
+        let complete: serde_json::Value =
+            serde_json::from_slice(&fs::read(backup.join("metadata.json")).unwrap()).unwrap();
+        assert_eq!(complete["newSchemaVersion"], 456);
+    }
+
+    #[test]
+    fn legacy_runtime_version_defaults_schema_to_zero() {
+        let state: RuntimeVersion =
+            serde_json::from_str(r#"{"foreseerr_version":"0.6.0"}"#).unwrap();
+        assert_eq!(state.schema_version, 0);
     }
 }
