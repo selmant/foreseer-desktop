@@ -110,6 +110,7 @@ pub struct StandaloneSupervisor {
     job: WindowsJob,
     pub origin: String,
     pub diagnostics: Vec<String>,
+    config: AppConfig,
 }
 
 /// Owns a Windows Job Object with kill-on-close semantics. Node may spawn
@@ -163,6 +164,10 @@ impl Drop for WindowsJob {
 
 impl StandaloneSupervisor {
     pub fn start(config: &AppConfig) -> Result<Self, SupervisorError> {
+        Self::start_on_port(config, 0)
+    }
+
+    fn start_on_port(config: &AppConfig, port: u16) -> Result<Self, SupervisorError> {
         let resource_root = resource_root()?;
         let node = resource_root
             .join("node")
@@ -216,7 +221,7 @@ impl StandaloneSupervisor {
             .env("CACHE_DIRECTORY", &cache_dir)
             .env("LOG_DIRECTORY", &log_dir)
             .env("HOST", "127.0.0.1")
-            .env("PORT", "0")
+            .env("PORT", port.to_string())
             .env(
                 "FORESEER_CACHE_LIMIT_BYTES",
                 config.standalone.cache_limit_bytes.to_string(),
@@ -297,6 +302,7 @@ impl StandaloneSupervisor {
                         job,
                         origin: ready.origin,
                         diagnostics,
+                        config: config.clone(),
                     };
                     if !supervisor.status_is_healthy() {
                         return Err(SupervisorError::Startup(
@@ -313,6 +319,31 @@ impl StandaloneSupervisor {
         self.send_control(&format!(
             r#"{{"type":"runtime-state","playbackActive":{active}}}"#
         ));
+    }
+
+    /// Restart on the original loopback port. The CEF extension descriptor is
+    /// bound to that exact origin, so a different port is a recoverable error
+    /// that requires a full application relaunch rather than a weakened allow
+    /// list.
+    pub fn retry_on_original_port(&mut self) -> Result<(), SupervisorError> {
+        let original_origin = self.origin.clone();
+        let port = url::Url::parse(&original_origin)
+            .ok()
+            .and_then(|url| url.port())
+            .ok_or_else(|| {
+                SupervisorError::Startup("Could not recover the previous loopback port".into())
+            })?;
+        let config = self.config.clone();
+        self.shutdown();
+        let mut replacement = Self::start_on_port(&config, port)?;
+        if replacement.origin != original_origin {
+            replacement.shutdown();
+            return Err(SupervisorError::Startup(
+                "Bundled Foreseerr did not rebind the previous loopback port".into(),
+            ));
+        }
+        *self = replacement;
+        Ok(())
     }
     /// Poll only after readiness. Callers can require three consecutive
     /// unhealthy results before presenting recovery UI.

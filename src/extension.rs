@@ -89,6 +89,7 @@ pub struct ForeseerExtension {
     self_weak: Mutex<Option<Weak<ForeseerExtension>>>,
     standalone_supervisor: Option<Arc<Mutex<StandaloneSupervisor>>>,
     runtime_shutting_down: Arc<AtomicBool>,
+    runtime_failed: Arc<AtomicBool>,
 }
 
 impl ForeseerExtension {
@@ -123,6 +124,7 @@ impl ForeseerExtension {
             self_weak: Mutex::new(None),
             standalone_supervisor,
             runtime_shutting_down: Arc::new(AtomicBool::new(false)),
+            runtime_failed: Arc::new(AtomicBool::new(false)),
         });
         if let Ok(mut slot) = extension.self_weak.lock() {
             *slot = Some(Arc::downgrade(&extension));
@@ -322,6 +324,7 @@ impl ForeseerExtension {
             return;
         };
         let shutting_down = Arc::clone(&self.runtime_shutting_down);
+        let runtime_failed = Arc::clone(&self.runtime_failed);
         std::thread::spawn(move || {
             let mut tracker = RuntimeHealthTracker::default();
             loop {
@@ -339,6 +342,7 @@ impl ForeseerExtension {
                 if shutting_down.load(Ordering::Acquire) {
                     return;
                 }
+                runtime_failed.store(true, Ordering::Release);
                 let _ = runtime.set_presentation(JfnPresentation::Frontend);
                 let event = NativeEventV1::new("runtime", "runtime-failed")
                     .with_error("standalone_runtime_failed")
@@ -413,6 +417,7 @@ impl ForeseerExtension {
             NativeCommandV1::BrowserCacheClear { id, ticket } => {
                 self.clear_browser_cache(id, ticket)
             }
+            NativeCommandV1::RuntimeRetry { id } => self.retry_standalone_runtime(id),
             NativeCommandV1::PlayItem { id, item_id } => {
                 tracing::info!(
                     target: "ForeseerExtension",
@@ -513,6 +518,54 @@ impl ForeseerExtension {
             };
             if let Ok(bytes) = serialize_event(&event) {
                 let _ = runtime.post_message(ExtensionSource::Frontend, &bytes);
+            }
+        });
+        true
+    }
+
+    fn retry_standalone_runtime(&self, id: String) -> bool {
+        if !self.runtime_failed.swap(false, Ordering::AcqRel) {
+            self.with_inner(|inner| {
+                inner.controller.runtime.post_frontend_event(
+                    NativeEventV1::new(id, "error").with_error("runtime_retry_unavailable"),
+                );
+            });
+            return true;
+        }
+        let Some((supervisor, runtime)) = self
+            .standalone_supervisor
+            .clone()
+            .zip(self.with_inner(|inner| inner.runtime.clone()))
+        else {
+            return true;
+        };
+        let Some(this) = self.upgrade() else {
+            return true;
+        };
+        std::thread::spawn(move || {
+            let recovered: Result<(), String> = match supervisor.lock() {
+                Ok(mut child) => child
+                    .retry_on_original_port()
+                    .map_err(|error| error.to_string()),
+                Err(_) => Err("Standalone supervisor is unavailable".into()),
+            };
+            match recovered {
+                Ok(()) => {
+                    let event = NativeEventV1::new(id, "runtime-recovered");
+                    if let Ok(bytes) = serialize_event(&event) {
+                        let _ = runtime.post_message(ExtensionSource::Frontend, &bytes);
+                    }
+                    this.monitor_standalone_runtime(runtime);
+                }
+                Err(message) => {
+                    this.runtime_failed.store(true, Ordering::Release);
+                    let event = NativeEventV1::new(id, "error")
+                        .with_error("runtime_retry_failed")
+                        .with_message(message);
+                    if let Ok(bytes) = serialize_event(&event) {
+                        let _ = runtime.post_message(ExtensionSource::Frontend, &bytes);
+                    }
+                }
             }
         });
         true

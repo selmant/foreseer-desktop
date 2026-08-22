@@ -79,6 +79,12 @@
       ]
     },
     {
+      "type": "runtime.retry",
+      "fields": [
+        "id"
+      ]
+    },
+    {
       "type": "window.minimize",
       "fields": [
         "id"
@@ -118,6 +124,7 @@
     "save-config-success"
     ,"browser-cache-cleared",
     "runtime-failed"
+    ,"runtime-recovered"
   ],
   "terminalPlayEventTypes": [
     "stopped",

@@ -36,7 +36,14 @@
     quit.addEventListener("click", function () {
       api.send({ type: "app.quit", id: crypto.randomUUID() });
     });
-    root.append(heading, detail, hint, quit);
+    const retry = document.createElement("button");
+    retry.type = "button";
+    retry.textContent = "Retry";
+    retry.addEventListener("click", function () {
+      retry.disabled = true;
+      api.send({ type: "runtime.retry", id: crypto.randomUUID() });
+    });
+    root.append(heading, detail, hint, retry, quit);
     document.body.append(root);
   }
 
@@ -67,6 +74,7 @@
       switch (command.type) {
         case "auth.challenge":
         case "session.clear":
+        case "runtime.retry":
         case "window.minimize":
         case "window.toggle-maximize":
         case "window.toggle-fullscreen":
@@ -112,6 +120,9 @@
     if (!detail || typeof detail !== "object") return;
     if (detail.type === "runtime-failed") {
       showRuntimeRecovery(detail.message);
+    }
+    if (detail.type === "runtime-recovered") {
+      window.location.reload();
     }
     if (detail.type === "auth-challenge" || detail.type === "error") {
       console.info("[ForeseerNative] host event", detail.type, detail.id);

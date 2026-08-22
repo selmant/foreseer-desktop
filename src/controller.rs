@@ -153,6 +153,8 @@ impl<R: RuntimeOps> Controller<R> {
             // The extension redeems the server-authorized ticket before it
             // reaches this generic controller.
             NativeCommandV1::BrowserCacheClear { .. } => true,
+            // The extension owns retry state and exact-port rebinding.
+            NativeCommandV1::RuntimeRetry { .. } => true,
             NativeCommandV1::WindowMinimize { .. } => {
                 self.runtime.minimize();
                 true
