@@ -218,6 +218,7 @@
       <button type="button" class="btn-secondary" onclick="openLogs()">Open Logs</button>
       <button type="button" class="btn-secondary" id="testBtn" onclick="testConnection()">Test</button>
       <button type="button" class="btn-primary" id="saveBtn" onclick="saveAndConnect()">Connect & Save</button>
+      <button type="button" class="btn-secondary" onclick="quitForeseer()">Quit</button>
     </div>
   </div>
 
@@ -252,7 +253,7 @@
           }
           const ok = host.send({
             id: reqId,
-            type: action === 'test' ? 'setup.check' : action === 'standalone' ? 'setup.standalone' : action === 'logs' ? 'runtime.open-logs' : 'setup.save',
+            type: action === 'test' ? 'setup.check' : action === 'standalone' ? 'setup.standalone' : action === 'logs' ? 'runtime.open-logs' : action === 'quit' ? 'app.quit' : 'setup.save',
             url,
             allowHttp: !!allowHttp,
           });
@@ -282,6 +283,12 @@
       } catch (err) {
         showStatus(err.message, 'error');
       }
+    }
+
+    function quitForeseer() {
+      nativeCall('quit', '', false).catch(() => {
+        showStatus('Could not quit Foreseer.', 'error');
+      });
     }
 
     async function testConnection() {

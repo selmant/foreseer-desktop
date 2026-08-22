@@ -38,6 +38,7 @@ mod tests {
         assert!(html.contains("foreseerNative"));
         assert!(html.contains("setup.standalone"));
         assert!(html.contains("Use Standalone"));
+        assert!(html.contains("Quit"));
         assert!(!html.contains("{{SETUP_EVENT_JS}}"));
         assert!(!html.contains("{{RECOVERY_MESSAGE}}"));
         assert!(!html.contains("jelliumHost"));
