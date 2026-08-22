@@ -339,8 +339,12 @@ impl ForeseerExtension {
         let automatic_restart_attempted = Arc::clone(&self.automatic_restart_attempted);
         std::thread::spawn(move || {
             let mut tracker = RuntimeHealthTracker::default();
+            let mut first_probe = true;
             loop {
-                std::thread::sleep(Duration::from_secs(10));
+                if !first_probe {
+                    std::thread::sleep(Duration::from_secs(10));
+                }
+                first_probe = false;
                 if shutting_down.load(Ordering::Acquire) {
                     return;
                 }
