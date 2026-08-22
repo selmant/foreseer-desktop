@@ -1,15 +1,13 @@
-use base64::Engine;
 use directories::ProjectDirs;
 use foreseer_desktop::config::{AppConfig, AppMode, MIN_CACHE_LIMIT_BYTES, validate_foreseer_url};
 use foreseer_desktop::extension::ForeseerExtension;
+use foreseer_desktop::setup::setup_document_url;
 use foreseer_desktop::supervisor::StandaloneSupervisor;
 use jfn_rust::{HostExtensionDescriptor, HostOptions};
 use std::ffi::OsStr;
 use std::path::PathBuf;
 use std::process::Command;
 use std::sync::{Arc, Mutex};
-
-mod setup;
 
 const SETUP_RELAUNCH_ENV: &str = "FORESEER_SETUP_RELAUNCHED";
 
@@ -33,9 +31,7 @@ fn main() {
 
     let mut standalone: Option<Arc<Mutex<StandaloneSupervisor>>> = None;
     let (descriptor, frontend_url, allow_insecure_http) = if needs_setup {
-        let setup_html = setup::get_setup_html("");
-        let base64_html = base64::engine::general_purpose::STANDARD.encode(setup_html);
-        let url = format!("data:text/html;base64,{base64_html}");
+        let url = setup_document_url("");
         let descriptor = HostExtensionDescriptor::from_setup_document(
             &url,
             vec![frontend_script],
@@ -48,11 +44,7 @@ fn main() {
         let child = match StandaloneSupervisor::start(&config) {
             Ok(child) => child,
             Err(error) => {
-                let setup_html = setup::get_setup_html(&error.to_string());
-                let url = format!(
-                    "data:text/html;base64,{}",
-                    base64::engine::general_purpose::STANDARD.encode(setup_html)
-                );
+                let url = setup_document_url(&error.to_string());
                 let descriptor = HostExtensionDescriptor::from_setup_document(
                     &url,
                     vec![frontend_script],
@@ -78,7 +70,7 @@ fn main() {
         (descriptor, url, true)
     } else {
         let url =
-            validate_foreseer_url(&config.remote.server_url, config.remote.allow_insecure_http)
+            validate_foreseer_url(&config.remote.server_url)
                 .expect("validated configured Foreseer URL");
         let descriptor = HostExtensionDescriptor::from_url(
             &url,
@@ -155,7 +147,6 @@ fn handle_cli_args() -> bool {
             println!("  --set-url <URL>    Compatibility alias for --remote");
             println!("  --standalone       Switch to bundled standalone mode");
             println!("  --cache-limit <B>  Set standalone transient cache budget in bytes");
-            println!("  --allow-http       Allow insecure HTTP when saving server URL");
             println!("  --show-config      Display current config file path and settings");
             println!("  --help, -h         Show this help message");
             std::process::exit(0);
@@ -193,8 +184,7 @@ fn handle_cli_args() -> bool {
                 std::process::exit(1);
             }
             let url = args[2].clone();
-            let allow_http = args.iter().any(|arg| arg == "--allow-http");
-            let url = match validate_foreseer_url(&url, allow_http) {
+            let url = match validate_foreseer_url(&url) {
                 Ok(url) => url,
                 Err(error) => {
                     eprintln!("Error: {}", error.message());
@@ -204,8 +194,8 @@ fn handle_cli_args() -> bool {
 
             let mut config = AppConfig::load();
             config.mode = AppMode::Remote;
-            config.remote.server_url = url;
-            config.remote.allow_insecure_http = allow_http;
+            config.remote.server_url = url.clone();
+            config.remote.allow_insecure_http = url.starts_with("http://");
             if let Err(e) = config.save() {
                 eprintln!("Error saving config: {}", e);
                 std::process::exit(1);

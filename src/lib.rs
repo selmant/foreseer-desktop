@@ -6,6 +6,7 @@ pub mod controller;
 pub mod extension;
 pub mod protocol;
 pub mod session;
+pub mod setup;
 pub mod supervisor;
 
 pub use config::{

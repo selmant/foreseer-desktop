@@ -3,7 +3,6 @@
 use directories::ProjectDirs;
 use serde::{Deserialize, Serialize};
 use std::fs;
-use std::net::IpAddr;
 use std::path::{Path, PathBuf};
 use url::Url;
 
@@ -20,8 +19,6 @@ pub enum ForeseerUrlError {
     UnsupportedScheme,
     MissingHost,
     CredentialsNotAllowed,
-    InsecureHttpNotAllowed,
-    InsecureHttpNonLocalHost,
 }
 impl ForeseerUrlError {
     pub const fn message(self) -> &'static str {
@@ -31,20 +28,11 @@ impl ForeseerUrlError {
             Self::UnsupportedScheme => "Server URL must use HTTP or HTTPS",
             Self::MissingHost => "Server URL must include a host",
             Self::CredentialsNotAllowed => "Server URL must not include credentials",
-            Self::InsecureHttpNotAllowed => {
-                "Server URL must use HTTPS unless HTTP is explicitly allowed"
-            }
-            Self::InsecureHttpNonLocalHost => {
-                "HTTP is allowed only for localhost or a private IP address"
-            }
         }
     }
 }
 
-pub fn validate_foreseer_url(
-    input: &str,
-    allow_insecure_http: bool,
-) -> Result<String, ForeseerUrlError> {
+pub fn validate_foreseer_url(input: &str) -> Result<String, ForeseerUrlError> {
     if input.is_empty() {
         return Err(ForeseerUrlError::Invalid);
     }
@@ -55,31 +43,13 @@ pub fn validate_foreseer_url(
     if !matches!(parsed.scheme(), "http" | "https") {
         return Err(ForeseerUrlError::UnsupportedScheme);
     }
-    let host = parsed.host_str().ok_or(ForeseerUrlError::MissingHost)?;
+    if parsed.host_str().is_none() {
+        return Err(ForeseerUrlError::MissingHost);
+    }
     if !parsed.username().is_empty() || parsed.password().is_some() {
         return Err(ForeseerUrlError::CredentialsNotAllowed);
     }
-    if parsed.scheme() == "http" && (!allow_insecure_http || !is_local_http_host(host)) {
-        return Err(if allow_insecure_http {
-            ForeseerUrlError::InsecureHttpNonLocalHost
-        } else {
-            ForeseerUrlError::InsecureHttpNotAllowed
-        });
-    }
     Ok(parsed.origin().ascii_serialization())
-}
-
-fn is_local_http_host(host: &str) -> bool {
-    if host.eq_ignore_ascii_case("localhost") {
-        return true;
-    }
-    match host.parse::<IpAddr>() {
-        Ok(IpAddr::V4(ip)) => ip.is_loopback() || ip.is_private() || ip.is_link_local(),
-        Ok(IpAddr::V6(ip)) => {
-            ip.is_loopback() || ip.is_unique_local() || ip.is_unicast_link_local()
-        }
-        Err(_) => false,
-    }
 }
 
 pub fn validate_bootstrap_server_url(input: &str) -> Result<String, ForeseerUrlError> {
@@ -87,12 +57,11 @@ pub fn validate_bootstrap_server_url(input: &str) -> Result<String, ForeseerUrlE
         return Err(ForeseerUrlError::Invalid);
     }
     let parsed = Url::parse(input).map_err(|_| ForeseerUrlError::Invalid)?;
-    let host = parsed.host_str().ok_or(ForeseerUrlError::MissingHost)?;
-    match parsed.scheme() {
-        "https" => {}
-        "http" if is_local_http_host(host) => {}
-        "http" => return Err(ForeseerUrlError::InsecureHttpNonLocalHost),
-        _ => return Err(ForeseerUrlError::UnsupportedScheme),
+    if parsed.host_str().is_none() {
+        return Err(ForeseerUrlError::MissingHost);
+    }
+    if !matches!(parsed.scheme(), "http" | "https") {
+        return Err(ForeseerUrlError::UnsupportedScheme);
     }
     if !parsed.username().is_empty() || parsed.password().is_some() {
         return Err(ForeseerUrlError::CredentialsNotAllowed);
@@ -181,12 +150,10 @@ impl AppConfig {
         Self::config_file_path().is_some_and(|p| p.exists())
     }
     pub fn is_configured(&self) -> bool {
-        self.mode == AppMode::Standalone
-            || validate_foreseer_url(&self.remote.server_url, self.remote.allow_insecure_http)
-                .is_ok()
+        self.mode == AppMode::Standalone || validate_foreseer_url(&self.remote.server_url).is_ok()
     }
     pub fn remote_url(&self) -> Result<String, ForeseerUrlError> {
-        validate_foreseer_url(&self.remote.server_url, self.remote.allow_insecure_http)
+        validate_foreseer_url(&self.remote.server_url)
     }
     pub fn load() -> Self {
         let mut config = Self::config_file_path()
@@ -278,20 +245,24 @@ mod tests {
         assert_eq!(MIN_CACHE_LIMIT_BYTES, 128 * 1024 * 1024);
     }
     #[test]
-    fn insecure_foreseer_urls_require_local_override() {
+    fn http_and_https_foreseer_urls_are_accepted() {
+        assert!(validate_foreseer_url("https://example.com").is_ok());
+        assert!(validate_foreseer_url("http://127.0.0.1").is_ok());
+        assert!(validate_foreseer_url("http://example.com").is_ok());
+        assert!(validate_foreseer_url("http://foreseer.lan:5055").is_ok());
         assert_eq!(
-            validate_foreseer_url("http://example.com", false).unwrap_err(),
-            ForeseerUrlError::InsecureHttpNotAllowed
+            validate_foreseer_url("ftp://example.com").unwrap_err(),
+            ForeseerUrlError::UnsupportedScheme
         );
-        assert!(validate_foreseer_url("http://127.0.0.1", true).is_ok());
     }
     #[test]
-    fn bootstrap_http_is_only_for_private_hosts() {
-        assert_eq!(
-            validate_bootstrap_server_url("http://jellyfin.example").unwrap_err(),
-            ForeseerUrlError::InsecureHttpNonLocalHost
-        );
+    fn bootstrap_http_follows_the_url_scheme() {
+        assert!(validate_bootstrap_server_url("http://jellyfin.example").is_ok());
         assert!(validate_bootstrap_server_url("http://192.168.40.3:8096").is_ok());
         assert!(validate_bootstrap_server_url("https://jellyfin.example").is_ok());
+        assert_eq!(
+            validate_bootstrap_server_url("ftp://jellyfin.example").unwrap_err(),
+            ForeseerUrlError::UnsupportedScheme
+        );
     }
 }

@@ -1,6 +1,6 @@
 //! Jellium `HostExtension` adapter for Foreseer protocol v1.
 
-use std::process::Command;
+use std::process::{Command, Stdio};
 use std::sync::{
     Arc, Mutex, Weak,
     atomic::{AtomicBool, Ordering},
@@ -513,6 +513,18 @@ impl ForeseerExtension {
             });
             return true;
         }
+        if let Some(origin) = self.standalone_origin() {
+            return self.with_inner(|inner| {
+                inner.frontend_url = origin.clone();
+                inner.allow_insecure_http = true;
+                inner.controller.handle_command(NativeCommandV1::SetupSave {
+                    id,
+                    url: origin,
+                    allow_http: true,
+                })
+            })
+            .unwrap_or(false);
+        }
         if let Err(message) = relaunch_application() {
             self.with_inner(|inner| {
                 inner.controller.runtime.post_frontend_event(
@@ -531,6 +543,12 @@ impl ForeseerExtension {
             inner.controller.runtime.request_shutdown();
         });
         true
+    }
+
+    fn standalone_origin(&self) -> Option<String> {
+        let supervisor = self.standalone_supervisor.as_ref()?;
+        let origin = supervisor.lock().ok()?.origin.clone();
+        (!origin.is_empty()).then_some(origin)
     }
 
     fn clear_browser_cache(&self, id: String, ticket: String) -> bool {
@@ -635,22 +653,35 @@ impl ForeseerExtension {
     }
 
     fn open_remote_setup(&self, id: String) -> bool {
-        match relaunch_setup() {
-            Ok(()) => {
+        let url = crate::setup::setup_document_url("");
+        let opened = self.with_inner(|inner| {
+            let ok = inner.runtime.enter_setup_document(&url);
+            if ok {
+                inner.controller.enter_setup();
+                inner.frontend_url = url.clone();
+                inner.allow_insecure_http = true;
+            }
+            ok
+        });
+        match opened {
+            Some(true) => {
+                tracing::info!(
+                    target: "ForeseerExtension",
+                    "loaded setup document in the current window"
+                );
                 self.with_inner(|inner| {
                     inner
                         .controller
                         .runtime
                         .post_frontend_event(NativeEventV1::new(id, "setup-opened"));
-                    inner.controller.runtime.request_shutdown();
                 });
             }
-            Err(message) => {
+            Some(false) | None => {
                 self.with_inner(|inner| {
                     inner.controller.runtime.post_frontend_event(
                         NativeEventV1::new(id, "error")
                             .with_error("setup_open_failed")
-                            .with_message(message),
+                            .with_message("Could not open the setup page"),
                     );
                 });
             }
@@ -658,7 +689,7 @@ impl ForeseerExtension {
         true
     }
 
-    fn start_setup_check(&self, id: String, url: String, allow_http: bool) -> bool {
+    fn start_setup_check(&self, id: String, url: String, _allow_http: bool) -> bool {
         let Some((generation, agent)) = self
             .with_inner(|inner| {
                 if !inner.controller.in_setup() {
@@ -667,7 +698,7 @@ impl ForeseerExtension {
                     );
                     return None;
                 }
-                if let Err(err) = validate_foreseer_url(&url, allow_http) {
+                if let Err(err) = validate_foreseer_url(&url) {
                     inner.controller.runtime.post_frontend_event(
                         NativeEventV1::new(id.clone(), "error")
                             .with_error("invalid_request")
@@ -689,7 +720,7 @@ impl ForeseerExtension {
             return true;
         };
         std::thread::spawn(move || {
-            let result = match validate_foreseer_url(&url, allow_http) {
+            let result = match validate_foreseer_url(&url) {
                 Ok(normalized) => match url::Url::parse(&normalized) {
                     Ok(parsed) => {
                         let test_url = parsed
@@ -718,8 +749,8 @@ impl ForeseerExtension {
         true
     }
 
-    fn save_setup(&self, id: String, url: String, allow_http: bool) -> bool {
-        let normalized = match validate_foreseer_url(&url, allow_http) {
+    fn save_setup(&self, id: String, url: String, _allow_http: bool) -> bool {
+        let normalized = match validate_foreseer_url(&url) {
             Ok(url) => url,
             Err(err) => {
                 let _ = self.with_inner(|inner| {
@@ -735,21 +766,21 @@ impl ForeseerExtension {
         let mut config = AppConfig::load();
         config.mode = AppMode::Remote;
         config.remote.server_url = normalized.clone();
-        config.remote.allow_insecure_http = allow_http;
+        config.remote.allow_insecure_http = normalized.starts_with("http://");
         let _ = config.save();
         if let Ok(mut url_guard) = self.frontend_url.lock() {
             *url_guard = normalized.clone();
         }
         if let Ok(mut allow_guard) = self.allow_insecure_http.lock() {
-            *allow_guard = allow_http;
+            *allow_guard = config.remote.allow_insecure_http;
         }
         self.with_inner(|inner| {
             inner.frontend_url = normalized.clone();
-            inner.allow_insecure_http = allow_http;
+            inner.allow_insecure_http = config.remote.allow_insecure_http;
             inner.controller.handle_command(NativeCommandV1::SetupSave {
                 id,
                 url: normalized,
-                allow_http,
+                allow_http: config.remote.allow_insecure_http,
             })
         })
         .unwrap_or(false)
@@ -812,28 +843,69 @@ impl ForeseerExtension {
 }
 
 fn relaunch_application() -> Result<(), String> {
+    spawn_successor()
+}
+
+/// Jellium refuses a second instance while this process still owns the IPC
+/// socket. Spawn a delayed successor so shutdown can drop that lock first.
+fn spawn_successor() -> Result<(), String> {
     let executable = std::env::current_exe()
         .map_err(|error| format!("Could not locate Foreseer executable: {error}"))?;
-    Command::new(executable)
-        .env_remove("FORESEER_SETUP_RELAUNCHED")
+    tracing::info!(
+        target: "ForeseerExtension",
+        "scheduling successor after this instance exits"
+    );
+    spawn_delayed_successor(&executable)
+}
+
+#[cfg(unix)]
+fn unix_shell_quote(value: &str) -> String {
+    format!("'{}'", value.replace('\'', "'\\''"))
+}
+
+#[cfg(unix)]
+fn spawn_delayed_successor(executable: &std::path::Path) -> Result<(), String> {
+    use std::os::unix::process::CommandExt;
+    let script = format!(
+        "sleep 2; exec {}",
+        unix_shell_quote(&executable.to_string_lossy())
+    );
+    Command::new("/bin/sh")
+        .arg("-c")
+        .arg(script)
         .env_remove("FORESEER_URL")
         .env_remove("FORESEER_ALLOW_INSECURE_HTTP")
+        .env_remove("FORESEER_SETUP_RELAUNCHED")
+        .stdin(Stdio::null())
+        .process_group(0)
         .spawn()
         .map(|_| ())
         .map_err(|error| format!("Could not restart Foreseer: {error}"))
 }
 
-fn relaunch_setup() -> Result<(), String> {
-    let executable = std::env::current_exe()
-        .map_err(|error| format!("Could not locate Foreseer executable: {error}"))?;
-    Command::new(executable)
-        .arg("--setup")
-        .env_remove("FORESEER_SETUP_RELAUNCHED")
+#[cfg(windows)]
+fn spawn_delayed_successor(executable: &std::path::Path) -> Result<(), String> {
+    use std::os::windows::process::CommandExt;
+    const DETACHED_PROCESS: u32 = 0x00000008;
+    const CREATE_NEW_PROCESS_GROUP: u32 = 0x00000200;
+    const CREATE_NO_WINDOW: u32 = 0x08000000;
+    let quoted_exe = format!("\"{}\"", executable.display());
+    let cmdline = format!("ping -n 3 127.0.0.1 >nul & {quoted_exe}");
+    Command::new("cmd")
+        .args(["/C", &cmdline])
         .env_remove("FORESEER_URL")
         .env_remove("FORESEER_ALLOW_INSECURE_HTTP")
+        .env_remove("FORESEER_SETUP_RELAUNCHED")
+        .stdin(Stdio::null())
+        .creation_flags(DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP | CREATE_NO_WINDOW)
         .spawn()
         .map(|_| ())
-        .map_err(|error| format!("Could not open Foreseer setup: {error}"))
+        .map_err(|error| format!("Could not restart Foreseer: {error}"))
+}
+
+#[cfg(not(any(unix, windows)))]
+fn spawn_delayed_successor(_executable: &std::path::Path) -> Result<(), String> {
+    Err("Restarting Foreseer is unsupported on this platform".into())
 }
 
 fn open_directory(directory: &std::path::Path) -> Result<(), String> {
@@ -851,4 +923,18 @@ fn open_directory(directory: &std::path::Path) -> Result<(), String> {
         .spawn()
         .map(|_| ())
         .map_err(|error| format!("Could not open logs: {error}"))
+}
+
+#[cfg(all(test, unix))]
+mod tests {
+    use super::unix_shell_quote;
+
+    #[test]
+    fn unix_shell_quote_escapes_spaces_and_quotes() {
+        assert_eq!(
+            unix_shell_quote("/opt/foreseer desktop"),
+            "'/opt/foreseer desktop'"
+        );
+        assert_eq!(unix_shell_quote("a'b"), "'a'\\''b'");
+    }
 }

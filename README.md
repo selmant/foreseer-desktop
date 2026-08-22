@@ -88,8 +88,8 @@ cargo run -- --remote https://foreseer.example.com
 # Set the combined transient cache budget (images + CEF HTTP cache):
 cargo run -- --cache-limit 2147483648
 
-# Allow HTTP (non-HTTPS) server URL:
-cargo run -- --set-url http://192.168.1.50:5055 --allow-http
+# HTTP or HTTPS — the URL scheme is the choice:
+cargo run -- --set-url http://192.168.1.50:5055
 
 # Temporary environment variable override (does not modify config.json):
 FORESEER_URL=https://foreseer.example cargo run

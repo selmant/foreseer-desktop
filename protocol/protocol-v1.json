@@ -199,7 +199,8 @@
       "userId",
       "deviceId",
       "accessToken",
-      "bootstrapGeneration"
+      "bootstrapGeneration",
+      "fallbackServerUrl"
     ],
     "nativeOnlyFields": [
       "accessToken",
