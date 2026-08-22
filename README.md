@@ -92,6 +92,31 @@ cargo run -- --set-url http://192.168.1.50:5055 --allow-http
 FORESEER_URL=https://foreseer.example cargo run
 ```
 
+### Standalone data and recovery
+
+Standalone Foreseerr data is separate from the Jellium profile:
+
+```text
+<Foreseer config>/standalone/
+  settings.json
+  db/db.sqlite3
+  logs/
+  state/
+  backups/
+```
+
+Before starting a bundled Foreseerr version different from the last verified
+standalone version, the desktop creates a timestamped backup of `settings.json`
+and the SQLite database (including WAL/SHM files). Caches and logs are never
+included in those backups, and only the three newest automatic backups are
+kept.
+
+If migration or startup fails, use the recovery screen’s **Open Logs** action,
+then stop the desktop before attempting manual recovery. Do not copy an older
+database over a database while a newer bundled binary is running: automatic
+restore is intentionally not implemented because schema downgrades are unsafe.
+Keep the failed database, logs, and backup together until recovery is complete.
+
 ## Test / lint
 
 ```sh
